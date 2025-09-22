@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 
 const Index = () => {
   const [messages, setMessages] = useState<Array<{id: string, content: string, sender: 'user' | 'ai', isImage?: boolean, showActions?: boolean}>>([]);
@@ -97,21 +99,41 @@ const Index = () => {
       await new Promise(resolve => setTimeout(resolve, 50));
     }
     
-    // Remove cursor
+    // Remove cursor and render final content with math
+    const finalContent = parseMarkdown(text);
     setMessages(prev => prev.map(msg => 
       msg.id === messageId 
-        ? { ...msg, content: currentText }
+        ? { ...msg, content: finalContent }
         : msg
     ));
   };
 
   const parseMarkdown = (text: string) => {
-    return text
+    let html = text
       .replace(/^## (.+)$/gm, '<h2 class="text-blue-300 text-lg font-semibold mt-6 mb-3">$1</h2>')
       .replace(/^\* (.+)$/gm, '<p class="ml-6 mb-2">• $1</p>')
       .replace(/\n\n/g, '</p><p class="mb-3">')
       .replace(/^(?!<h2|<p class)(.+)$/gm, '<p class="mb-3">$1</p>')
       .replace(/<p class="mb-3"><\/p>/g, '');
+    
+    // Render LaTeX math expressions
+    html = html.replace(/\$\$(.*?)\$\$/g, (match, math) => {
+      try {
+        return katex.renderToString(math, { displayMode: true });
+      } catch (e) {
+        return match;
+      }
+    });
+    
+    html = html.replace(/\$([^$]+)\$/g, (match, math) => {
+      try {
+        return katex.renderToString(math, { displayMode: false });
+      } catch (e) {
+        return match;
+      }
+    });
+    
+    return html;
   };
 
   const callGeminiAPI = async (prompt: string): Promise<string> => {
@@ -178,8 +200,7 @@ const Index = () => {
       setIsLoading(false);
       
       const messageId = addMessage('', 'ai', false, true);
-      const parsedContent = parseMarkdown(response);
-      await typewriterEffect(messageId, parsedContent);
+      await typewriterEffect(messageId, response);
       
     } catch (error) {
       setIsLoading(false);
@@ -229,8 +250,7 @@ const Index = () => {
       setIsLoading(false);
       
       const messageId = addMessage('', 'ai', false, true);
-      const parsedContent = parseMarkdown(response);
-      await typewriterEffect(messageId, parsedContent);
+      await typewriterEffect(messageId, response);
     } catch (error) {
       setIsLoading(false);
       addMessage('⚠️ Sorry, I encountered an error generating the explanation.', 'ai');
@@ -246,8 +266,7 @@ const Index = () => {
       setIsLoading(false);
       
       const messageId = addMessage('', 'ai', false, true);
-      const parsedContent = parseMarkdown(response);
-      await typewriterEffect(messageId, parsedContent);
+      await typewriterEffect(messageId, response);
     } catch (error) {
       setIsLoading(false);
       addMessage('⚠️ Sorry, I encountered an error generating practice problems.', 'ai');
@@ -263,8 +282,7 @@ const Index = () => {
       setIsLoading(false);
       
       const messageId = addMessage('', 'ai', false, true);
-      const parsedContent = parseMarkdown(response);
-      await typewriterEffect(messageId, parsedContent);
+      await typewriterEffect(messageId, response);
     } catch (error) {
       setIsLoading(false);
       addMessage('⚠️ Sorry, I encountered an error generating the summary.', 'ai');
