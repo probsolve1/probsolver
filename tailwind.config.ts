@@ -22,6 +22,7 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          glow: "hsl(var(--primary-glow))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -58,6 +59,23 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
         },
       },
+      backgroundImage: {
+        "gradient-primary": "var(--gradient-primary)",
+        "gradient-hero": "var(--gradient-hero)",
+        "gradient-background": "var(--gradient-background)",
+        "gradient-card": "var(--gradient-card)",
+        "gradient-text": "var(--gradient-text)",
+      },
+      boxShadow: {
+        "primary": "var(--shadow-primary)",
+        "glow": "var(--shadow-glow)",
+        "card": "var(--shadow-card)",
+        "input": "var(--shadow-input)",
+      },
+      transitionTimingFunction: {
+        "smooth": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "bounce": "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
@@ -80,10 +98,55 @@ export default {
             height: "0",
           },
         },
+        "gradient-flow": {
+          "0%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+          "100%": { backgroundPosition: "0% 50%" },
+        },
+        "slide-up": {
+          from: {
+            opacity: "0",
+            transform: "translateY(20px)",
+          },
+          to: {
+            opacity: "1",
+            transform: "translateY(0)",
+          },
+        },
+        "bounce-dots": {
+          "0%, 80%, 100%": {
+            transform: "scale(0)",
+          },
+          "40%": {
+            transform: "scale(1.0)",
+          },
+        },
+        "pulse-glow": {
+          "0%, 100%": {
+            boxShadow: "0 0 5px hsl(var(--primary) / 0.5)",
+          },
+          "50%": {
+            boxShadow: "0 0 20px hsl(var(--primary) / 0.8)",
+          },
+        },
+        "blink": {
+          "0%, 50%": { opacity: "1" },
+          "51%, 100%": { opacity: "0" },
+        },
+        "typewriter": {
+          from: { width: "0" },
+          to: { width: "100%" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "gradient-flow": "gradient-flow 15s ease infinite",
+        "slide-up": "slide-up 0.4s ease-out",
+        "bounce-dots": "bounce-dots 1.4s ease-in-out infinite both",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "blink": "blink 1s infinite",
+        "typewriter": "typewriter 3s steps(40, end)",
       },
     },
   },
