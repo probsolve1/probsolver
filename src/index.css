@@ -127,6 +127,11 @@ All colors MUST be HSL.
   ::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--primary) / 0.5);
   }
+
+  /* Hide Lovable badge */
+  #lovable-badge {
+    display: none !important;
+  }
 }
 
 @layer components {
