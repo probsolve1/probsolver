@@ -13,6 +13,7 @@ const Index = () => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const currentProblem = useRef<string>('');
+  const currentProblemImage = useRef<{data: string, mimeType: string} | null>(null);
   
   const API_KEY = 'AIzaSyDEeJkrym65-ZGNzTpY6_wHEMhoDETFX4w';
 
@@ -180,6 +181,7 @@ const Index = () => {
   const solveProblem = async () => {
     const problemText = inputValue.trim();
     currentProblem.current = problemText;
+    currentProblemImage.current = uploadedImage; // Store the image for action buttons
     
     if (!problemText && !uploadedImage) {
       alert('Please enter a problem or upload an image!');
@@ -251,13 +253,22 @@ const Index = () => {
     setIsLoading(true);
     
     try {
+      // Store current image for API call
+      const tempImage = uploadedImage;
+      setUploadedImage(currentProblemImage.current);
+      
       const response = await callGeminiAPI(prompt);
       setIsLoading(false);
+      
+      // Restore current image
+      setUploadedImage(tempImage);
       
       const messageId = addMessage('', 'ai', false, true);
       await typewriterEffect(messageId, response);
     } catch (error) {
       setIsLoading(false);
+      const tempImage = uploadedImage;
+      setUploadedImage(tempImage);
       addMessage('⚠️ Sorry, I encountered an error generating the explanation.', 'ai');
     }
   };
@@ -267,13 +278,22 @@ const Index = () => {
     setIsLoading(true);
     
     try {
+      // Store current image for API call
+      const tempImage = uploadedImage;
+      setUploadedImage(currentProblemImage.current);
+      
       const response = await callGeminiAPI(prompt);
       setIsLoading(false);
+      
+      // Restore current image
+      setUploadedImage(tempImage);
       
       const messageId = addMessage('', 'ai', false, true);
       await typewriterEffect(messageId, response);
     } catch (error) {
       setIsLoading(false);
+      const tempImage = uploadedImage;
+      setUploadedImage(tempImage);
       addMessage('⚠️ Sorry, I encountered an error generating practice problems.', 'ai');
     }
   };
@@ -283,13 +303,22 @@ const Index = () => {
     setIsLoading(true);
     
     try {
+      // Store current image for API call
+      const tempImage = uploadedImage;
+      setUploadedImage(currentProblemImage.current);
+      
       const response = await callGeminiAPI(prompt);
       setIsLoading(false);
+      
+      // Restore current image
+      setUploadedImage(tempImage);
       
       const messageId = addMessage('', 'ai', false, true);
       await typewriterEffect(messageId, response);
     } catch (error) {
       setIsLoading(false);
+      const tempImage = uploadedImage;
+      setUploadedImage(tempImage);
       addMessage('⚠️ Sorry, I encountered an error generating the summary.', 'ai');
     }
   };
