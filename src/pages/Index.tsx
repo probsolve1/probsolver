@@ -91,9 +91,14 @@ const Index = () => {
     
     for (let i = 0; i < words.length; i++) {
       currentText += words[i] + ' ';
+      
+      // Parse and render math for current text during typing
+      let displayText = parseMarkdown(currentText);
+      displayText += '<span class="typewriter-cursor">|</span>';
+      
       setMessages(prev => prev.map(msg => 
         msg.id === messageId 
-          ? { ...msg, content: currentText + '<span class="typewriter-cursor">|</span>' }
+          ? { ...msg, content: displayText }
           : msg
       ));
       await new Promise(resolve => setTimeout(resolve, 50));
