@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProbSolver - AI Math Tutor & Chat Companion</title>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(-45deg, hsl(240, 17%, 6%), hsl(240, 20%, 8%), hsl(245, 15%, 10%), hsl(250, 12%, 8%));
+            background-size: 400% 400%;
+            animation: gradientFlow 15s ease infinite;
+            color: hsl(226, 100%, 92%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @keyframes gradientFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            max-width: 4xl;
+            margin: 0 auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        .header {
+            text-align: center;
+            padding: 2rem 0;
+        }
+
+        .title {
+            font-size: 3rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, hsl(250, 100%, 65%), hsl(217, 91%, 60%));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+        }
+
+        .subtitle {
+            color: hsl(240, 5%, 65%);
+            max-width: 600px;
+            margin: 0 auto 2rem;
+        }
+
+        .mode-toggle {
+            display: inline-flex;
+            background: hsl(240, 15%, 8%);
+            border: 1px solid hsl(240, 15%, 15%);
+            border-radius: 0.75rem;
+            padding: 0.25rem;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .mode-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: transparent;
+            color: hsl(240, 5%, 65%);
+        }
+
+        .mode-btn.active {
+            background: hsl(250, 100%, 65%);
+            color: hsl(240, 17%, 6%);
+            box-shadow: 0 0 20px hsl(250, 100%, 65%, 0.3);
+        }
+
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 1rem;
+            animation: slideUp 0.4s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 1rem;
+            border-radius: 1rem;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: hsl(250, 100%, 65%);
+            color: hsl(240, 17%, 6%);
+            border-bottom-right-radius: 0.5rem;
+        }
+
+        .message.ai .message-content {
+            background: hsl(240, 15%, 8%);
+            border: 1px solid hsl(240, 15%, 15%);
+            color: hsl(226, 100%, 92%);
+        }
+
+        .input-area {
+            background: hsl(240, 15%, 8%);
+            border: 1px solid hsl(240, 15%, 15%);
+            border-radius: 1rem;
+            padding: 1rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            backdrop-filter: blur(12px);
+        }
+
+        .message-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: hsl(226, 100%, 92%);
+            font-size: 1rem;
+        }
+
+        .message-input::placeholder {
+            color: hsl(240, 5%, 65%);
+        }
+
+        .send-btn {
+            background: hsl(250, 100%, 65%);
+            color: hsl(240, 17%, 6%);
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .send-btn:hover {
+            background: hsl(250, 100%, 70%);
+            transform: translateY(-2px);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: hsl(240, 5%, 65%);
+            margin: 1rem 0;
+        }
+
+        .loading-dots {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .loading-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            background: hsl(250, 100%, 65%);
+            border-radius: 50%;
+            animation: bounce 1.4s ease-in-out infinite both;
+        }
+
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+        .loading-dot:nth-child(3) { animation-delay: 0s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            background: hsl(240, 15%, 12%);
+            color: hsl(226, 100%, 92%);
+            border: 1px solid hsl(240, 15%, 15%);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background: hsl(240, 15%, 18%);
+        }
+
+        .code-preview {
+            margin-top: 1rem;
+            background: hsl(240, 15%, 10%);
+            border: 1px solid hsl(240, 15%, 15%);
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+
+        .code-preview-header {
+            background: hsl(240, 15%, 8%);
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid hsl(240, 15%, 15%);
+            font-size: 0.875rem;
+            color: hsl(240, 5%, 65%);
+        }
+
+        .code-preview iframe {
+            width: 100%;
+            height: 200px;
+            border: none;
+            background: white;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: hsl(240, 15%, 15%);
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: hsl(250, 100%, 65%, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">ProbSolver</h1>
+            <p class="subtitle">Your AI math tutor and friendly chat companion</p>
+            
+            <div class="mode-toggle">
+                <button class="mode-btn active" data-mode="study">📚 Study Mode</button>
+                <button class="mode-btn" data-mode="normal">💬 Chat Mode</button>
+            </div>
+        </div>
+
+        <div class="chat-area" id="chatArea">
+            <!-- Messages will be added here -->
+        </div>
+
+        <div class="loading" id="loading" style="display: none;">
+            <div class="loading-dots">
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+            </div>
+            <span>ProbSolver is thinking...</span>
+        </div>
+
+        <div class="input-area">
+            <input 
+                type="text" 
+                class="message-input" 
+                id="messageInput"
+                placeholder="Ask ProbSolver..."
+            >
+            <button class="send-btn" id="sendBtn">Send</button>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentMode = 'study';
+        let conversationHistory = [];
+        let isLoading = false;
+        
+        const API_KEY = 'AIzaSyDEeJkrym65-ZGNzTpY6_wHEMhoDETFX4w';
+
+        // DOM elements
+        const chatArea = document.getElementById('chatArea');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const loadingIndicator = document.getElementById('loading');
+        const modeButtons = document.querySelectorAll('.mode-btn');
+
+        // Mode switching
+        modeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modeButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentMode = btn.dataset.mode;
+                updatePlaceholder();
+            });
+        });
+
+        function updatePlaceholder() {
+            messageInput.placeholder = currentMode === 'study' 
+                ? 'Ask ProbSolver...' 
+                : 'What\'s on your mind?';
+        }
+
+        // Message handling
+        function addMessage(content, sender, isImage = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            if (isImage) {
+                const img = document.createElement('img');
+                img.src = content;
+                img.style.maxWidth = '100%';
+                img.style.borderRadius = '0.5rem';
+                contentDiv.appendChild(img);
+            } else {
+                contentDiv.innerHTML = parseMarkdown(content);
+            }
+            
+            messageDiv.appendChild(contentDiv);
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            
+            // Add to conversation history
+            if (!isImage) {
+                conversationHistory.push({ content, sender, timestamp: Date.now() });
+            }
+            
+            return messageDiv;
+        }
+
+        // Markdown parsing with LaTeX support
+        function parseMarkdown(text) {
+            let html = text
+                .replace(/^## (.+)$/gm, '<h3 style="color: hsl(217, 91%, 60%); font-size: 1.125rem; font-weight: 600; margin: 1.5rem 0 0.75rem 0;">$1</h3>')
+                .replace(/^\* (.+)$/gm, '<p style="margin-left: 1.5rem; margin-bottom: 0.5rem;">• $1</p>')
+                .replace(/\n\n/g, '</p><p style="margin-bottom: 0.75rem;">')
+                .replace(/^(?!<h3|<p)(.+)$/gm, '<p style="margin-bottom: 0.75rem;">$1</p>')
+                .replace(/<p style="margin-bottom: 0.75rem;"><\/p>/g, '');
+
+            // Render LaTeX math expressions
+            html = html.replace(/\$\$(.*?)\$\$/g, (match, math) => {
+                try {
+                    return katex.renderToString(math, { displayMode: true });
+                } catch (e) {
+                    return match;
+                }
+            });
+
+            html = html.replace(/\$([^$]+)\$/g, (match, math) => {
+                try {
+                    return katex.renderToString(math, { displayMode: false });
+                } catch (e) {
+                    return match;
+                }
+            });
+
+            return html;
+        }
+
+        // Typewriter effect
+        async function typewriterEffect(element, text) {
+            const words = text.split(' ');
+            let currentText = '';
+            
+            for (let i = 0; i < words.length; i++) {
+                currentText += words[i] + ' ';
+                let displayText = parseMarkdown(currentText);
+                element.innerHTML = displayText + '<span style="animation: blink 1s infinite;">|</span>';
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+            
+            element.innerHTML = parseMarkdown(text);
+        }
+
+        // API call to Gemini
+        async function callGeminiAPI(prompt) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
+            
+            // Build conversation context
+            const contextPrompt = conversationHistory.length > 0 
+                ? `CONVERSATION HISTORY:\\n${conversationHistory
+                    .slice(-10)
+                    .map(msg => `${msg.sender.toUpperCase()}: ${msg.content}`)
+                    .join('\\n')}\\n\\nCURRENT QUESTION: ${prompt}`
+                : prompt;
+
+            const systemInstruction = currentMode === 'study' 
+                ? `You are ProbSolver, an expert math tutor and coding mentor created by Naitik Khandelwal. 
+
+STUDY MODE CAPABILITIES:
+- Provide clear, step-by-step solutions using markdown formatting
+- Use LaTeX for mathematical expressions (wrap in $ for inline math, $$ for display math)
+- Generate code examples with explanations when asked
+- Remember previous conversations and can reference them
+- Be concise but thorough in explanations
+
+When someone asks who created you, respond: "I was created by Naitik Khandelwal"
+
+Be professional, educational, and focus on helping students learn effectively.`
+                : `You are ProbSolver, a friendly AI companion created by Naitik Khandelwal.
+
+NORMAL MODE PERSONALITY:
+- Talk like a caring friend, mentor, or family member
+- Be warm, supportive, and understanding  
+- Adapt your tone to be like a mentor for students, a caring parent figure, or a true friend
+- Show genuine interest in the person's life and wellbeing
+- Use encouraging and uplifting language
+- Remember previous conversations to build a personal connection
+
+When someone asks who created you, respond: "I was created by Naitik Khandelwal"
+
+Be conversational, empathetic, and focus on building a genuine friendship while still being helpful.`;
+
+            const payload = {
+                contents: [{ parts: [{ text: contextPrompt }] }],
+                systemInstruction: {
+                    parts: [{ text: systemInstruction }]
+                }
+            };
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not process your request.';
+        }
+
+        // Send message
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message || isLoading) return;
+
+            // Add user message
+            addMessage(message, 'user');
+            messageInput.value = '';
+
+            // Show loading
+            isLoading = true;
+            sendBtn.disabled = true;
+            loadingIndicator.style.display = 'flex';
+
+            try {
+                const response = await callGeminiAPI(message);
+                
+                // Hide loading
+                isLoading = false;
+                sendBtn.disabled = false;
+                loadingIndicator.style.display = 'none';
+
+                // Add AI response with typewriter effect
+                const messageElement = addMessage('', 'ai');
+                const contentDiv = messageElement.querySelector('.message-content');
+                await typewriterEffect(contentDiv, response);
+
+                // Add action buttons for study mode
+                if (currentMode === 'study') {
+                    const actionDiv = document.createElement('div');
+                    actionDiv.className = 'action-buttons';
+                    actionDiv.innerHTML = `
+                        <button class="action-btn" onclick="explainConcept('${message.replace(/'/g, "\\'")}')">✨ Explain Concept</button>
+                        <button class="action-btn" onclick="generatePractice('${message.replace(/'/g, "\\'")}')">✨ Practice Problems</button>
+                        <button class="action-btn" onclick="generateSummary('${message.replace(/'/g, "\\'")}')">📝 Shorten it</button>
+                    `;
+                    contentDiv.appendChild(actionDiv);
+                }
+
+            } catch (error) {
+                isLoading = false;
+                sendBtn.disabled = false;
+                loadingIndicator.style.display = 'none';
+                addMessage('⚠️ Sorry, I encountered an error. Please try again.', 'ai');
+                console.error('API Error:', error);
+            }
+        }
+
+        // Action button functions
+        async function explainConcept(problemText) {
+            const prompt = `Explain the core mathematical concept behind this problem in simple terms: "${problemText}"`;
+            await handleActionButton(prompt);
+        }
+
+        async function generatePractice(problemText) {
+            const prompt = `Generate 3 similar practice problems based on: "${problemText}". Include solutions.`;
+            await handleActionButton(prompt);
+        }
+
+        async function generateSummary(problemText) {
+            const prompt = `Create a concise summary of the key steps to solve: "${problemText}"`;
+            await handleActionButton(prompt);
+        }
+
+        async function handleActionButton(prompt) {
+            if (isLoading) return;
+
+            isLoading = true;
+            sendBtn.disabled = true;
+            loadingIndicator.style.display = 'flex';
+
+            try {
+                const response = await callGeminiAPI(prompt);
+                
+                isLoading = false;
+                sendBtn.disabled = false;
+                loadingIndicator.style.display = 'none';
+
+                const messageElement = addMessage('', 'ai');
+                const contentDiv = messageElement.querySelector('.message-content');
+                await typewriterEffect(contentDiv, response);
+
+            } catch (error) {
+                isLoading = false;
+                sendBtn.disabled = false;
+                loadingIndicator.style.display = 'none';
+                addMessage('⚠️ Sorry, I encountered an error.', 'ai');
+            }
+        }
+
+        // Event listeners
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        sendBtn.addEventListener('click', sendMessage);
+
+        // Initialize
+        updatePlaceholder();
+        
+        // Add a welcome message
+        setTimeout(() => {
+            const welcomeMsg = currentMode === 'study' 
+                ? 'Hi! I\'m ProbSolver, your AI math tutor and coding mentor. Upload problems, ask questions, and I\'ll provide step-by-step solutions. How can I help you learn today?'
+                : 'Hey there! I\'m ProbSolver, your friendly AI companion. I\'m here to chat about anything on your mind. What would you like to talk about?';
+            
+            const messageElement = addMessage('', 'ai');
+            const contentDiv = messageElement.querySelector('.message-content');
+            typewriterEffect(contentDiv, welcomeMsg);
+        }, 1000);
+    </script>
+</body>
+</html>

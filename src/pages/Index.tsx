@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
+import { ModeToggle } from '@/components/ModeToggle';
+import { CodePreview } from '@/components/CodePreview';
+import { useModeContext } from '@/contexts/ModeContext';
+import { useGeminiAPI } from '@/hooks/useGeminiAPI';
 
 const Index = () => {
-  const [messages, setMessages] = useState<Array<{id: string, content: string, sender: 'user' | 'ai', isImage?: boolean, showActions?: boolean}>>([]);
+  const [messages, setMessages] = useState<Array<{id: string, content: string, sender: 'user' | 'ai', isImage?: boolean, showActions?: boolean, hasCode?: boolean}>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [uploadedImage, setUploadedImage] = useState<{data: string, mimeType: string} | null>(null);
@@ -15,7 +19,8 @@ const Index = () => {
   const currentProblem = useRef<string>('');
   const currentProblemImage = useRef<{data: string, mimeType: string} | null>(null);
   
-  const API_KEY = 'AIzaSyDEeJkrym65-ZGNzTpY6_wHEMhoDETFX4w';
+  const { mode, addToHistory } = useModeContext();
+  const { callGeminiAPI } = useGeminiAPI();
 
   useEffect(() => {
     // Initialize speech recognition
@@ -74,15 +79,22 @@ const Index = () => {
     }
   }, [messages]);
 
-  const addMessage = (content: string, sender: 'user' | 'ai', isImage = false, showActions = false) => {
+  const addMessage = (content: string, sender: 'user' | 'ai', isImage = false, showActions = false, hasCode = false) => {
     const newMessage = {
       id: Date.now().toString(),
       content,
       sender,
       isImage,
-      showActions
+      showActions,
+      hasCode
     };
     setMessages(prev => [...prev, newMessage]);
+    
+    // Add to conversation history for context
+    if (!isImage) {
+      addToHistory(content, sender, isImage);
+    }
+    
     return newMessage.id;
   };
 
@@ -142,41 +154,27 @@ const Index = () => {
     return html;
   };
 
-  const callGeminiAPI = async (prompt: string): Promise<string> => {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
+  const detectCode = (text: string) => {
+    // Detect if the text contains code blocks
+    return /```[\s\S]*?```/.test(text);
+  };
+
+  const extractCodeBlocks = (text: string) => {
+    const codeBlocks: Array<{code: string, language: string}> = [];
+    const regex = /```(\w+)?\s*([\s\S]*?)```/g;
+    let match;
     
-    const parts: any[] = [{ text: prompt }];
-    if (uploadedImage) {
-      parts.push({
-        inlineData: {
-          mimeType: uploadedImage.mimeType,
-          data: uploadedImage.data
-        }
+    while ((match = regex.exec(text)) !== null) {
+      codeBlocks.push({
+        language: match[1] || 'text',
+        code: match[2].trim()
       });
     }
     
-    const payload = {
-      contents: [{ parts }],
-      systemInstruction: {
-        parts: [{
-          text: "You are an expert math tutor. Provide clear, step-by-step solutions using markdown formatting. Use LaTeX for mathematical expressions (wrap in $ for inline math, $$ for display math). Be concise but thorough."
-        }]
-      }
-    };
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
-    }
-    
-    const result = await response.json();
-    return result?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not process your request.';
+    return codeBlocks;
   };
+
+  // Removed callGeminiAPI - now using the hook
 
   const solveProblem = async () => {
     const problemText = inputValue.trim();
@@ -203,10 +201,12 @@ const Index = () => {
     setUploadedImage(null);
     
     try {
-      const response = await callGeminiAPI(problemText);
+      const response = await callGeminiAPI(problemText, uploadedImage);
       setIsLoading(false);
       
-      const messageId = addMessage('', 'ai', false, true);
+      const hasCode = detectCode(response);
+      const showActions = mode === 'study'; // Only show study actions in study mode
+      const messageId = addMessage('', 'ai', false, showActions, hasCode);
       await typewriterEffect(messageId, response);
       
     } catch (error) {
@@ -253,22 +253,14 @@ const Index = () => {
     setIsLoading(true);
     
     try {
-      // Store current image for API call
-      const tempImage = uploadedImage;
-      setUploadedImage(currentProblemImage.current);
-      
-      const response = await callGeminiAPI(prompt);
+      const response = await callGeminiAPI(prompt, currentProblemImage.current);
       setIsLoading(false);
       
-      // Restore current image
-      setUploadedImage(tempImage);
-      
-      const messageId = addMessage('', 'ai', false, true);
+      const hasCode = detectCode(response);
+      const messageId = addMessage('', 'ai', false, true, hasCode);
       await typewriterEffect(messageId, response);
     } catch (error) {
       setIsLoading(false);
-      const tempImage = uploadedImage;
-      setUploadedImage(tempImage);
       addMessage('⚠️ Sorry, I encountered an error generating the explanation.', 'ai');
     }
   };
@@ -278,22 +270,14 @@ const Index = () => {
     setIsLoading(true);
     
     try {
-      // Store current image for API call
-      const tempImage = uploadedImage;
-      setUploadedImage(currentProblemImage.current);
-      
-      const response = await callGeminiAPI(prompt);
+      const response = await callGeminiAPI(prompt, currentProblemImage.current);
       setIsLoading(false);
       
-      // Restore current image
-      setUploadedImage(tempImage);
-      
-      const messageId = addMessage('', 'ai', false, true);
+      const hasCode = detectCode(response);
+      const messageId = addMessage('', 'ai', false, true, hasCode);
       await typewriterEffect(messageId, response);
     } catch (error) {
       setIsLoading(false);
-      const tempImage = uploadedImage;
-      setUploadedImage(tempImage);
       addMessage('⚠️ Sorry, I encountered an error generating practice problems.', 'ai');
     }
   };
@@ -303,22 +287,14 @@ const Index = () => {
     setIsLoading(true);
     
     try {
-      // Store current image for API call
-      const tempImage = uploadedImage;
-      setUploadedImage(currentProblemImage.current);
-      
-      const response = await callGeminiAPI(prompt);
+      const response = await callGeminiAPI(prompt, currentProblemImage.current);
       setIsLoading(false);
       
-      // Restore current image
-      setUploadedImage(tempImage);
-      
-      const messageId = addMessage('', 'ai', false, true);
+      const hasCode = detectCode(response);
+      const messageId = addMessage('', 'ai', false, true, hasCode);
       await typewriterEffect(messageId, response);
     } catch (error) {
       setIsLoading(false);
-      const tempImage = uploadedImage;
-      setUploadedImage(tempImage);
       addMessage('⚠️ Sorry, I encountered an error generating the summary.', 'ai');
     }
   };
@@ -334,10 +310,19 @@ const Index = () => {
         {/* Header - Only show when no messages */}
         {messages.length === 0 && (
           <div className="flex-1 flex flex-col justify-center items-center text-center">
-            <h1 className="text-6xl font-bold text-white mb-4 tracking-tight">
+            <h1 className="text-6xl font-bold text-foreground mb-4 tracking-tight gradient-text">
               ProbSolver
             </h1>
-            <div className="w-24 h-0.5 bg-gradient-to-r from-blue-400 to-purple-500 mb-8"></div>
+            <div className="w-24 h-0.5 bg-gradient-primary mb-8"></div>
+            <div className="mb-8">
+              <ModeToggle />
+            </div>
+            <p className="text-muted-foreground max-w-md">
+              {mode === 'study' 
+                ? 'Your AI math tutor and coding mentor. Upload problems, ask questions, and get step-by-step solutions.'
+                : 'Your friendly AI companion. Let\'s chat about anything on your mind!'
+              }
+            </p>
           </div>
         )}
 
@@ -346,15 +331,18 @@ const Index = () => {
           <div className="flex-1 overflow-y-auto py-8 space-y-6" ref={chatContainerRef}>
             {/* Minimized Header */}
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-white tracking-tight">ProbSolver</h1>
-              <div className="w-16 h-0.5 bg-gradient-to-r from-blue-400 to-purple-500 mx-auto mt-2"></div>
+              <div className="flex items-center justify-center gap-4 mb-2">
+                <h1 className="text-3xl font-bold text-foreground tracking-tight gradient-text">ProbSolver</h1>
+                <ModeToggle />
+              </div>
+              <div className="w-16 h-0.5 bg-gradient-primary mx-auto mt-2"></div>
             </div>
 
             {messages.map((message) => (
               <div key={message.id} className="message animate-slide-up">
                 {message.sender === 'user' ? (
                   <div className="flex justify-end mb-4">
-                    <div className="bg-blue-600 text-white px-4 py-2 rounded-2xl rounded-br-lg max-w-xs shadow-lg">
+                    <div className="bg-primary text-primary-foreground px-4 py-2 rounded-2xl rounded-br-lg max-w-xs shadow-card">
                       {message.isImage ? (
                         <img src={message.content} alt="User uploaded" className="max-w-full rounded-lg" />
                       ) : (
@@ -365,36 +353,49 @@ const Index = () => {
                 ) : (
                   <div className="flex justify-start">
                     <div className="max-w-full">
-                      {/* Solution Header */}
-                      <h2 className="text-2xl font-semibold text-white mb-4 border-b border-slate-600 pb-2">
-                        Solution
+                      {/* Response Header */}
+                      <h2 className="text-2xl font-semibold text-foreground mb-4 border-b border-border pb-2">
+                        {mode === 'study' ? 'Solution' : 'Response'}
                       </h2>
                       
-                      {/* Solution Content */}
+                      {/* Response Content */}
                       <div 
-                        className="text-slate-200 mb-6 leading-relaxed min-h-[2rem] whitespace-pre-wrap break-words"
+                        className="text-foreground mb-6 leading-relaxed min-h-[2rem] whitespace-pre-wrap break-words"
                         style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
                         dangerouslySetInnerHTML={{ __html: message.content }}
                       />
+
+                      {/* Code Preview - Show if message has code */}
+                      {message.hasCode && (
+                        <div className="space-y-4">
+                          {extractCodeBlocks(message.content).map((codeBlock, index) => (
+                            <CodePreview 
+                              key={index} 
+                              code={codeBlock.code} 
+                              language={codeBlock.language} 
+                            />
+                          ))}
+                        </div>
+                      )}
                       
-                      {/* Action Buttons - Only show for solutions with showActions */}
-                      {message.showActions && (
+                      {/* Action Buttons - Only show for study mode solutions with showActions */}
+                      {message.showActions && mode === 'study' && (
                         <div className="flex flex-wrap gap-3 mt-6">
                           <button
                             onClick={() => explainConcept(currentProblem.current)}
-                            className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                            className="bg-secondary hover:bg-secondary/80 text-secondary-foreground px-4 py-2 rounded-lg text-sm font-medium transition-smooth flex items-center gap-2"
                           >
                             ✨ Explain Concept
                           </button>
                           <button
                             onClick={() => generatePractice(currentProblem.current)}
-                            className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                            className="bg-secondary hover:bg-secondary/80 text-secondary-foreground px-4 py-2 rounded-lg text-sm font-medium transition-smooth flex items-center gap-2"
                           >
                             ✨ Practice Problems
                           </button>
                           <button
                             onClick={() => generateSummary(currentProblem.current)}
-                            className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                            className="bg-secondary hover:bg-secondary/80 text-secondary-foreground px-4 py-2 rounded-lg text-sm font-medium transition-smooth flex items-center gap-2"
                           >
                             📝 Shorten it
                           </button>
@@ -410,11 +411,11 @@ const Index = () => {
 
         {/* Loading Indicator */}
         {isLoading && (
-          <div className="flex items-center justify-center py-4 text-slate-400">
+          <div className="flex items-center justify-center py-4 text-muted-foreground">
             <div className="flex gap-1 mr-3">
-              <div className="w-2 h-2 bg-blue-500 rounded-full loading-dot"></div>
-              <div className="w-2 h-2 bg-blue-500 rounded-full loading-dot"></div>
-              <div className="w-2 h-2 bg-blue-500 rounded-full loading-dot"></div>
+              <div className="w-2 h-2 bg-primary rounded-full animate-bounce-dots"></div>
+              <div className="w-2 h-2 bg-primary rounded-full animate-bounce-dots" style={{animationDelay: '-0.32s'}}></div>
+              <div className="w-2 h-2 bg-primary rounded-full animate-bounce-dots" style={{animationDelay: '-0.16s'}}></div>
             </div>
             <span>ProbSolver is thinking...</span>
           </div>
@@ -442,14 +443,14 @@ const Index = () => {
           )}
 
           {/* Input Bar */}
-          <div className="bg-slate-800 border border-slate-600 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-2xl">
+          <div className="glass-card rounded-2xl px-4 py-3 flex items-center gap-3 shadow-card">
             <input
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder={uploadedImage ? "Image ready to analyze..." : "Ask ProbSolver"}
-              className="flex-1 bg-transparent text-slate-200 placeholder-slate-500 outline-none text-sm"
+              placeholder={uploadedImage ? "Image ready to analyze..." : mode === 'study' ? "Ask ProbSolver" : "What's on your mind?"}
+              className="flex-1 bg-transparent text-foreground placeholder-muted-foreground outline-none text-sm"
             />
             
             {/* Action Buttons */}
@@ -463,8 +464,8 @@ const Index = () => {
               </label>
               
               {/* Camera Upload */}
-              <label className="cursor-pointer p-2 hover:bg-slate-700 rounded-lg transition-colors">
-                <svg className="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="currentColor">
+              <label className="cursor-pointer p-2 hover:bg-muted rounded-lg transition-smooth">
+                <svg className="w-5 h-5 text-muted-foreground" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 17c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm1.5-9H17v10.5c0 1.1-.9 2-2 2h-1V13c0-2.76-2.24-5-5-5H7.5V6.5c0-1.1.9-2 2-2h4z"/>
                   <circle cx="12" cy="12" r="3"/>
                 </svg>
