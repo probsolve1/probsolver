@@ -372,7 +372,8 @@ const Index = () => {
                       
                       {/* Solution Content */}
                       <div 
-                        className="text-slate-200 mb-6 leading-relaxed"
+                        className="text-slate-200 mb-6 leading-relaxed min-h-[2rem] whitespace-pre-wrap break-words"
+                        style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
                         dangerouslySetInnerHTML={{ __html: message.content }}
                       />
                       
