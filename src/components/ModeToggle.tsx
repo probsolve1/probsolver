@@ -1,10 +1,10 @@
-import { useModeContext } from '@/contexts/ModeContext';
+import { useModeContext, AppMode } from '@/contexts/ModeContext';
 import { Button } from '@/components/ui/button';
 
 export const ModeToggle = () => {
   const { mode, setMode, clearHistory } = useModeContext();
 
-  const handleModeChange = (newMode: 'study' | 'normal') => {
+  const handleModeChange = (newMode: AppMode) => {
     if (newMode !== mode) {
       setMode(newMode);
       // Optionally clear history when switching modes
@@ -24,7 +24,7 @@ export const ModeToggle = () => {
             : 'text-muted-foreground hover:text-foreground'
         }`}
       >
-        📚 Study Mode
+        📚 Study
       </Button>
       <Button
         variant={mode === 'normal' ? 'default' : 'ghost'}
@@ -36,7 +36,19 @@ export const ModeToggle = () => {
             : 'text-muted-foreground hover:text-foreground'
         }`}
       >
-        💬 Chat Mode
+        💬 Chat
+      </Button>
+      <Button
+        variant={mode === 'image' ? 'default' : 'ghost'}
+        size="sm"
+        onClick={() => handleModeChange('image')}
+        className={`text-xs font-medium transition-smooth ${
+          mode === 'image' 
+            ? 'bg-primary text-primary-foreground shadow-glow' 
+            : 'text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        🎨 Image
       </Button>
     </div>
   );

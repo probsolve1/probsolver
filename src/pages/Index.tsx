@@ -5,6 +5,7 @@ import { ModeToggle } from '@/components/ModeToggle';
 import { CodePreview } from '@/components/CodePreview';
 import { useModeContext } from '@/contexts/ModeContext';
 import { useGeminiAPI } from '@/hooks/useGeminiAPI';
+import { useImageGeneration } from '@/hooks/useImageGeneration';
 
 const Index = () => {
   const [messages, setMessages] = useState<Array<{id: string, content: string, sender: 'user' | 'ai', isImage?: boolean, showActions?: boolean, hasCode?: boolean}>>([]);
@@ -21,6 +22,7 @@ const Index = () => {
   
   const { mode, addToHistory } = useModeContext();
   const { callGeminiAPI } = useGeminiAPI();
+  const { generateImage, editImage, convertToAI, isGenerating } = useImageGeneration();
 
   useEffect(() => {
     // Initialize speech recognition
@@ -69,8 +71,42 @@ const Index = () => {
       }
     };
 
+    // Add drag and drop event listeners
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0) {
+        const file = files[0];
+        if (file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const result = e.target?.result as string;
+            setUploadedImage({
+              data: result.split(',')[1],
+              mimeType: file.type
+            });
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    };
+
     document.addEventListener('paste', handlePaste);
-    return () => document.removeEventListener('paste', handlePaste);
+    document.addEventListener('dragover', handleDragOver);
+    document.addEventListener('drop', handleDrop);
+    
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+      document.removeEventListener('dragover', handleDragOver);
+      document.removeEventListener('drop', handleDrop);
+    };
   }, []);
 
   useEffect(() => {
@@ -102,6 +138,11 @@ const Index = () => {
     const words = text.split(' ');
     let currentText = '';
     
+    // Store current scroll position to prevent auto-scrolling during typing
+    const chatContainer = chatContainerRef.current;
+    const shouldAutoScroll = chatContainer ? 
+      Math.abs(chatContainer.scrollHeight - chatContainer.clientHeight - chatContainer.scrollTop) < 100 : false;
+    
     for (let i = 0; i < words.length; i++) {
       currentText += words[i] + ' ';
       
@@ -114,7 +155,13 @@ const Index = () => {
           ? { ...msg, content: displayText }
           : msg
       ));
-      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Only scroll if user was already at bottom
+      if (shouldAutoScroll && chatContainer) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 30)); // Faster typing
     }
     
     // Remove cursor and render final content with math
@@ -124,6 +171,13 @@ const Index = () => {
         ? { ...msg, content: finalContent }
         : msg
     ));
+    
+    // Final scroll to bottom
+    if (shouldAutoScroll && chatContainer) {
+      setTimeout(() => {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }, 100);
+    }
   };
 
   const parseMarkdown = (text: string) => {
@@ -198,16 +252,43 @@ const Index = () => {
     
     setIsLoading(true);
     setInputValue('');
+    const currentUploadedImage = uploadedImage;
     setUploadedImage(null);
     
     try {
-      const response = await callGeminiAPI(problemText, uploadedImage);
-      setIsLoading(false);
-      
-      const hasCode = detectCode(response);
-      const showActions = mode === 'study'; // Only show study actions in study mode
-      const messageId = addMessage('', 'ai', false, showActions, hasCode);
-      await typewriterEffect(messageId, response);
+      if (mode === 'image' && !currentUploadedImage) {
+        // Generate new image
+        const imageUrl = await generateImage({ 
+          prompt: problemText,
+          width: 512,
+          height: 512 
+        });
+        setIsLoading(false);
+        
+        const messageId = addMessage('', 'ai');
+        await typewriterEffect(messageId, `Here's your generated image:\n\n![Generated Image](${imageUrl})\n\nImage created based on: "${problemText}"`);
+        
+      } else if (mode === 'image' && currentUploadedImage) {
+        // Convert/edit existing image
+        const blob = await fetch(`data:${currentUploadedImage.mimeType};base64,${currentUploadedImage.data}`).then(r => r.blob());
+        const file = new File([blob], 'image.jpg', { type: currentUploadedImage.mimeType });
+        
+        const convertedUrl = await convertToAI(file);
+        setIsLoading(false);
+        
+        const messageId = addMessage('', 'ai');
+        await typewriterEffect(messageId, `Here's your AI-converted image:\n\n![AI Converted Image](${convertedUrl})\n\nConverted with prompt: "${problemText || 'AI artistic conversion'}"`);
+        
+      } else {
+        // Regular chat/study mode
+        const response = await callGeminiAPI(problemText, currentUploadedImage);
+        setIsLoading(false);
+        
+        const hasCode = detectCode(response);
+        const showActions = mode === 'study'; // Only show study actions in study mode
+        const messageId = addMessage('', 'ai', false, showActions, hasCode);
+        await typewriterEffect(messageId, response);
+      }
       
     } catch (error) {
       setIsLoading(false);
@@ -319,7 +400,9 @@ const Index = () => {
             </div>
             <p className="text-muted-foreground max-w-md">
               {mode === 'study' 
-                ? 'Your AI math tutor and coding mentor. Upload problems, ask questions, and get step-by-step solutions.'
+                ? 'Your AI tutor for ALL subjects and coding mentor. Upload problems, ask questions, and get step-by-step solutions with live previews.'
+                : mode === 'image'
+                ? 'Generate, edit, and transform images with AI. Upload images to convert or describe what you want to create.'
                 : 'Your friendly AI companion. Let\'s chat about anything on your mind!'
               }
             </p>
@@ -355,7 +438,7 @@ const Index = () => {
                     <div className="max-w-full">
                       {/* Response Header */}
                       <h2 className="text-2xl font-semibold text-foreground mb-4 border-b border-border pb-2">
-                        {mode === 'study' ? 'Solution' : 'Response'}
+                        {mode === 'study' ? 'Solution' : mode === 'image' ? 'Image Result' : 'Response'}
                       </h2>
                       
                       {/* Response Content */}
@@ -410,14 +493,16 @@ const Index = () => {
         )}
 
         {/* Loading Indicator */}
-        {isLoading && (
+        {(isLoading || isGenerating) && (
           <div className="flex items-center justify-center py-4 text-muted-foreground">
             <div className="flex gap-1 mr-3">
               <div className="w-2 h-2 bg-primary rounded-full animate-bounce-dots"></div>
               <div className="w-2 h-2 bg-primary rounded-full animate-bounce-dots" style={{animationDelay: '-0.32s'}}></div>
               <div className="w-2 h-2 bg-primary rounded-full animate-bounce-dots" style={{animationDelay: '-0.16s'}}></div>
             </div>
-            <span>ProbSolver is thinking...</span>
+            <span>
+              {isGenerating ? 'Generating image...' : 'ProbSolver is thinking...'}
+            </span>
           </div>
         )}
 
@@ -449,7 +534,7 @@ const Index = () => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder={uploadedImage ? "Image ready to analyze..." : mode === 'study' ? "Ask ProbSolver" : "What's on your mind?"}
+              placeholder={uploadedImage ? "Image ready to analyze..." : mode === 'study' ? "Ask any subject question or coding problem..." : mode === 'image' ? "Describe the image you want to generate or edit..." : "What's on your mind?"}
               className="flex-1 bg-transparent text-foreground placeholder-muted-foreground outline-none text-sm"
             />
             
