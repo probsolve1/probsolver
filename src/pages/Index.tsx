@@ -8,12 +8,13 @@ import { useGeminiAPI } from '@/hooks/useGeminiAPI';
 import { useImageGeneration } from '@/hooks/useImageGeneration';
 
 const Index = () => {
-  const [messages, setMessages] = useState<Array<{id: string, content: string, sender: 'user' | 'ai', isImage?: boolean, showActions?: boolean, hasCode?: boolean}>>([]);
+  const [messages, setMessages] = useState<Array<{id: string, content: string, sender: 'user' | 'ai', isImage?: boolean, showActions?: boolean, hasCode?: boolean, imageUrl?: string}>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [uploadedImage, setUploadedImage] = useState<{data: string, mimeType: string} | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
   
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -110,10 +111,21 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    if (chatContainerRef.current) {
+    if (chatContainerRef.current && autoScroll) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, autoScroll]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    
+    if (isNearBottom && !autoScroll) {
+      setAutoScroll(true);
+    } else if (!isNearBottom && autoScroll && isLoading) {
+      setAutoScroll(false);
+    }
+  };
 
   const addMessage = (content: string, sender: 'user' | 'ai', isImage = false, showActions = false, hasCode = false) => {
     const newMessage = {
@@ -251,6 +263,7 @@ const Index = () => {
     }
     
     setIsLoading(true);
+    setAutoScroll(true); // Enable auto-scroll when starting generation
     setInputValue('');
     const currentUploadedImage = uploadedImage;
     setUploadedImage(null);
@@ -265,8 +278,14 @@ const Index = () => {
         });
         setIsLoading(false);
         
-        const messageId = addMessage('', 'ai');
-        await typewriterEffect(messageId, `Here's your generated image:\n\n![Generated Image](${imageUrl})\n\nImage created based on: "${problemText}"`);
+        const newMessage = {
+          id: Date.now().toString(),
+          content: `Here's your generated image for: "${problemText}"`,
+          sender: 'ai' as const,
+          isImage: true,
+          imageUrl: imageUrl
+        };
+        setMessages(prev => [...prev, newMessage]);
         
       } else if (mode === 'image' && currentUploadedImage) {
         // Convert/edit existing image
@@ -276,8 +295,14 @@ const Index = () => {
         const convertedUrl = await convertToAI(file);
         setIsLoading(false);
         
-        const messageId = addMessage('', 'ai');
-        await typewriterEffect(messageId, `Here's your AI-converted image:\n\n![AI Converted Image](${convertedUrl})\n\nConverted with prompt: "${problemText || 'AI artistic conversion'}"`);
+        const newMessage = {
+          id: Date.now().toString(),
+          content: `Here's your AI-converted image: "${problemText || 'AI artistic conversion'}"`,
+          sender: 'ai' as const,
+          isImage: true,
+          imageUrl: convertedUrl
+        };
+        setMessages(prev => [...prev, newMessage]);
         
       } else {
         // Regular chat/study mode
@@ -331,9 +356,10 @@ const Index = () => {
 
   const explainConcept = async (problemText: string) => {
     const prompt = `Explain the core mathematical concept behind this problem in simple terms: "${problemText}"`;
-    setIsLoading(true);
-    
-    try {
+          setIsLoading(true);
+          setAutoScroll(true); // Enable auto-scroll when starting generation
+          
+          try {
       const response = await callGeminiAPI(prompt, currentProblemImage.current);
       setIsLoading(false);
       
@@ -411,7 +437,7 @@ const Index = () => {
 
         {/* Messages Area */}
         {messages.length > 0 && (
-          <div className="flex-1 overflow-y-auto py-8 space-y-6" ref={chatContainerRef}>
+          <div className="flex-1 overflow-y-auto py-8 space-y-6" ref={chatContainerRef} onScroll={handleScroll}>
             {/* Minimized Header */}
             <div className="text-center mb-8">
               <div className="flex items-center justify-center gap-4 mb-2">
@@ -427,7 +453,7 @@ const Index = () => {
                   <div className="flex justify-end mb-4">
                     <div className="bg-primary text-primary-foreground px-4 py-2 rounded-2xl rounded-br-lg max-w-xs shadow-card">
                       {message.isImage ? (
-                        <img src={message.content} alt="User uploaded" className="max-w-full rounded-lg" />
+                        <img src={message.imageUrl || message.content} alt="User uploaded" className="max-w-full rounded-lg" />
                       ) : (
                         <span className="text-sm">{message.content}</span>
                       )}
@@ -442,11 +468,22 @@ const Index = () => {
                       </h2>
                       
                       {/* Response Content */}
-                      <div 
-                        className="text-foreground mb-6 leading-relaxed min-h-[2rem] whitespace-pre-wrap break-words"
-                        style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
-                        dangerouslySetInnerHTML={{ __html: message.content }}
-                      />
+                      {message.isImage ? (
+                        <div className="space-y-2">
+                          <p className="text-sm text-muted-foreground">{message.content}</p>
+                          <img 
+                            src={message.imageUrl} 
+                            alt="Generated image" 
+                            className="max-w-md rounded-lg border shadow-lg"
+                          />
+                        </div>
+                      ) : (
+                        <div 
+                          className="text-foreground mb-6 leading-relaxed min-h-[2rem] whitespace-pre-wrap break-words"
+                          style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
+                          dangerouslySetInnerHTML={{ __html: message.content }}
+                        />
+                      )}
 
                       {/* Code Preview - Show if message has code */}
                       {message.hasCode && (
