@@ -2,7 +2,8 @@ import { useModeContext } from '@/contexts/ModeContext';
 
 export const useGeminiAPI = () => {
   const { getSystemInstruction, conversationHistory } = useModeContext();
-  const API_KEY = 'AIzaSyDEeJkrym65-ZGNzTpY6_wHEMhoDETFX4w';
+  // API key is now securely stored as an environment variable
+  const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
   const callGeminiAPI = async (
     prompt: string, 

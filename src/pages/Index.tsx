@@ -407,24 +407,24 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-700/20 via-slate-800/40 to-slate-900"></div>
-      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl"></div>
+    <div className="min-h-screen animated-gradient relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/10 via-accent/5 to-transparent"></div>
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/10 rounded-full blur-3xl animate-pulse"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-accent/10 rounded-full blur-3xl animate-pulse"></div>
       
-      <div className="relative z-10 w-full max-w-4xl mx-auto px-4 flex flex-col h-screen">
+      <div className="relative z-10 flex flex-col h-screen">
         {/* Header - Only show when no messages */}
         {messages.length === 0 && (
-          <div className="flex-1 flex flex-col justify-center items-center text-center">
-            <h1 className="text-6xl font-bold text-foreground mb-4 tracking-tight gradient-text">
+          <div className="flex-1 flex flex-col justify-center items-center text-center px-4 max-w-4xl mx-auto">
+            <h1 className="text-7xl font-bold text-foreground mb-6 tracking-tight gradient-text">
               ProbSolver
             </h1>
             <div className="w-24 h-0.5 bg-gradient-primary mb-8"></div>
             <div className="mb-8">
               <ModeToggle />
             </div>
-            <p className="text-muted-foreground max-w-md">
+            <p className="text-muted-foreground max-w-lg text-lg leading-relaxed">
               {mode === 'study' 
                 ? 'Your AI tutor for ALL subjects and coding mentor. Upload problems, ask questions, and get step-by-step solutions with live previews.'
                 : mode === 'image'
@@ -437,10 +437,10 @@ const Index = () => {
 
         {/* Messages Area */}
         {messages.length > 0 && (
-          <div className="flex-1 overflow-y-auto py-8 space-y-6" ref={chatContainerRef} onScroll={handleScroll}>
+          <div className="flex-1 overflow-y-auto py-8 space-y-6 px-4 max-w-4xl mx-auto w-full" ref={chatContainerRef} onScroll={handleScroll}>
             {/* Minimized Header */}
             <div className="text-center mb-8">
-              <div className="flex items-center justify-center gap-4 mb-2">
+              <div className="flex items-center justify-center gap-4 mb-2 flex-wrap">
                 <h1 className="text-3xl font-bold text-foreground tracking-tight gradient-text">ProbSolver</h1>
                 <ModeToggle />
               </div>
@@ -450,12 +450,12 @@ const Index = () => {
             {messages.map((message) => (
               <div key={message.id} className="message animate-slide-up">
                 {message.sender === 'user' ? (
-                  <div className="flex justify-end mb-4">
-                    <div className="bg-primary text-primary-foreground px-4 py-2 rounded-2xl rounded-br-lg max-w-xs shadow-card">
+                  <div className="flex justify-end mb-6">
+                    <div className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl rounded-br-lg max-w-sm shadow-card">
                       {message.isImage ? (
                         <img src={message.imageUrl || message.content} alt="User uploaded" className="max-w-full rounded-lg" />
                       ) : (
-                        <span className="text-sm">{message.content}</span>
+                        <span className="text-sm font-medium">{message.content}</span>
                       )}
                     </div>
                   </div>
