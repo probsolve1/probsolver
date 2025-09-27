@@ -118,12 +118,13 @@ const Index = () => {
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 50; // Reduced threshold for better responsiveness
     
+    // Enable auto-scroll when near bottom, disable when scrolled up
     if (isNearBottom && !autoScroll) {
       setAutoScroll(true);
-    } else if (!isNearBottom && autoScroll && isLoading) {
-      setAutoScroll(false);
+    } else if (!isNearBottom && autoScroll) {
+      setAutoScroll(false); // Remove the isLoading condition - disable whenever user scrolls up
     }
   };
 
@@ -150,11 +151,6 @@ const Index = () => {
     const words = text.split(' ');
     let currentText = '';
     
-    // Store current scroll position to prevent auto-scrolling during typing
-    const chatContainer = chatContainerRef.current;
-    const shouldAutoScroll = chatContainer ? 
-      Math.abs(chatContainer.scrollHeight - chatContainer.clientHeight - chatContainer.scrollTop) < 100 : false;
-    
     for (let i = 0; i < words.length; i++) {
       currentText += words[i] + ' ';
       
@@ -168,9 +164,9 @@ const Index = () => {
           : msg
       ));
       
-      // Only scroll if user was already at bottom
-      if (shouldAutoScroll && chatContainer) {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+      // Check if auto-scroll is enabled during each word (responsive to user scrolling)
+      if (autoScroll && chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
       }
       
       await new Promise(resolve => setTimeout(resolve, 30)); // Faster typing
@@ -184,10 +180,12 @@ const Index = () => {
         : msg
     ));
     
-    // Final scroll to bottom
-    if (shouldAutoScroll && chatContainer) {
+    // Final scroll to bottom if auto-scroll is still enabled
+    if (autoScroll && chatContainerRef.current) {
       setTimeout(() => {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
       }, 100);
     }
   };
