@@ -2,15 +2,16 @@ import { useModeContext } from '@/contexts/ModeContext';
 
 export const useGeminiAPI = () => {
   const { getSystemInstruction, conversationHistory } = useModeContext();
-  // API key from environment variable (frontend only supports import.meta.env)
-  const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+  // TEMPORARY: Using hardcoded API key for demo (like your HTML file)
+  // WARNING: This exposes the API key to users - only use for demos!
+  const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyDEeJkrym65-ZGNzTpY6_wHEMhoDETFX4w';
 
   const callGeminiAPI = async (
     prompt: string, 
     uploadedImage?: {data: string, mimeType: string} | null
   ): Promise<string> => {
     if (!API_KEY) {
-      throw new Error('Gemini API key not found. Please set VITE_GEMINI_API_KEY in your environment variables.');
+      throw new Error('Gemini API key not configured. Please check your API key setup.');
     }
     
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
