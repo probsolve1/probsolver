@@ -2,13 +2,17 @@ import { useModeContext } from '@/contexts/ModeContext';
 
 export const useGeminiAPI = () => {
   const { getSystemInstruction, conversationHistory } = useModeContext();
-  // API key is now securely stored as an environment variable
-  const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  // API key from environment variable (frontend only supports import.meta.env)
+  const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
   const callGeminiAPI = async (
     prompt: string, 
     uploadedImage?: {data: string, mimeType: string} | null
   ): Promise<string> => {
+    if (!API_KEY) {
+      throw new Error('Gemini API key not found. Please set VITE_GEMINI_API_KEY in your environment variables.');
+    }
+    
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
     
     // Build conversation context from history
