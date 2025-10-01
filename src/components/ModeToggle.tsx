@@ -27,6 +27,18 @@ export const ModeToggle = () => {
         📚 Study
       </Button>
       <Button
+        variant={mode === 'code' ? 'default' : 'ghost'}
+        size="sm"
+        onClick={() => handleModeChange('code')}
+        className={`text-xs font-medium transition-smooth ${
+          mode === 'code' 
+            ? 'bg-primary text-primary-foreground shadow-glow' 
+            : 'text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        💻 Code
+      </Button>
+      <Button
         variant={mode === 'normal' ? 'default' : 'ghost'}
         size="sm"
         onClick={() => handleModeChange('normal')}
