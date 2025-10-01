@@ -20,6 +20,7 @@ const Index = () => {
   const recognitionRef = useRef<any>(null);
   const currentProblem = useRef<string>('');
   const currentProblemImage = useRef<{data: string, mimeType: string} | null>(null);
+  const autoScrollRef = useRef(true); // Track auto-scroll in real-time for typewriter
   
   const { mode, addToHistory } = useModeContext();
   const { callGeminiAPI } = useGeminiAPI();
@@ -118,13 +119,15 @@ const Index = () => {
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    const isNearBottom = scrollHeight - scrollTop - clientHeight < 50; // Reduced threshold for better responsiveness
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 50;
     
-    // Enable auto-scroll when near bottom, disable when scrolled up
+    // Update both state and ref for real-time tracking
     if (isNearBottom && !autoScroll) {
       setAutoScroll(true);
+      autoScrollRef.current = true;
     } else if (!isNearBottom && autoScroll) {
-      setAutoScroll(false); // Remove the isLoading condition - disable whenever user scrolls up
+      setAutoScroll(false);
+      autoScrollRef.current = false;
     }
   };
 
@@ -164,8 +167,8 @@ const Index = () => {
           : msg
       ));
       
-      // Check if auto-scroll is enabled during each word (responsive to user scrolling)
-      if (autoScroll && chatContainerRef.current) {
+      // Use ref to check real-time auto-scroll state
+      if (autoScrollRef.current && chatContainerRef.current) {
         chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
       }
       
@@ -181,9 +184,9 @@ const Index = () => {
     ));
     
     // Final scroll to bottom if auto-scroll is still enabled
-    if (autoScroll && chatContainerRef.current) {
+    if (autoScrollRef.current && chatContainerRef.current) {
       setTimeout(() => {
-        if (chatContainerRef.current) {
+        if (chatContainerRef.current && autoScrollRef.current) {
           chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
       }, 100);
@@ -261,7 +264,8 @@ const Index = () => {
     }
     
     setIsLoading(true);
-    setAutoScroll(true); // Enable auto-scroll when starting generation
+    setAutoScroll(true);
+    autoScrollRef.current = true; // Enable auto-scroll when starting generation
     setInputValue('');
     const currentUploadedImage = uploadedImage;
     setUploadedImage(null);
@@ -355,7 +359,8 @@ const Index = () => {
   const explainConcept = async (problemText: string) => {
     const prompt = `Explain the core mathematical concept behind this problem in simple terms: "${problemText}"`;
           setIsLoading(true);
-          setAutoScroll(true); // Enable auto-scroll when starting generation
+          setAutoScroll(true);
+          autoScrollRef.current = true;
           
           try {
       const response = await callGeminiAPI(prompt, currentProblemImage.current);
@@ -469,11 +474,27 @@ const Index = () => {
                       {message.isImage ? (
                         <div className="space-y-2">
                           <p className="text-sm text-muted-foreground">{message.content}</p>
-                          <img 
-                            src={message.imageUrl} 
-                            alt="Generated image" 
-                            className="max-w-md rounded-lg border shadow-lg"
-                          />
+                           <div className="space-y-3">
+                            <img 
+                              src={message.imageUrl} 
+                              alt="Generated image" 
+                              className="max-w-md rounded-lg border shadow-lg"
+                            />
+                            <button
+                              onClick={() => {
+                                const link = document.createElement('a');
+                                link.href = message.imageUrl!;
+                                link.download = `probsolver-image-${Date.now()}.png`;
+                                link.click();
+                              }}
+                              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                              Download Image
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <div 
