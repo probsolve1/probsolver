@@ -33,11 +33,45 @@ export const CodeChat = ({ onCodeGenerated }: CodeChatProps) => {
 
       // Extract HTML code blocks from response
       const codeBlockRegex = /```(?:html)?\s*([\s\S]*?)```/g;
-      const match = codeBlockRegex.exec(response);
+      let match;
+      let foundCode = false;
       
-      if (match) {
+      while ((match = codeBlockRegex.exec(response)) !== null) {
         const code = match[1].trim();
-        onCodeGenerated(code);
+        // Only use HTML that looks like a complete document
+        if (code.includes('<!DOCTYPE') || code.includes('<html')) {
+          onCodeGenerated(code);
+          foundCode = true;
+          break;
+        }
+      }
+      
+      // If no complete HTML found, create a simple document with the content
+      if (!foundCode) {
+        const simpleHtmlRegex = /```(?:html)?\s*([\s\S]*?)```/g;
+        const simpleMatch = simpleHtmlRegex.exec(response);
+        if (simpleMatch) {
+          const snippet = simpleMatch[1].trim();
+          const wrappedCode = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generated App</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 2rem;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  ${snippet}
+</body>
+</html>`;
+          onCodeGenerated(wrappedCode);
+        }
       }
     } catch (error) {
       setMessages((prev) => [...prev, { role: 'ai', content: '❌ Sorry, I encountered an error. Please try again.' }]);
