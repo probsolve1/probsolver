@@ -3,6 +3,7 @@ import { FileExplorer } from './FileExplorer';
 import { CodeEditor } from './CodeEditor';
 import { PreviewPanel } from './PreviewPanel';
 import { CodeChat } from './CodeChat';
+import { ModeToggle } from './ModeToggle';
 import { Button } from './ui/button';
 import { PanelLeftClose, PanelLeft, Code2 } from 'lucide-react';
 
@@ -38,7 +39,7 @@ export const CodeIDE = () => {
 </head>
 <body>
   <div class="container">
-    <h1>Welcome to Lovable AI</h1>
+    <h1>Welcome to ProbSolver AI</h1>
     <p>Start building your app by chatting below!</p>
   </div>
 </body>
@@ -48,17 +49,20 @@ export const CodeIDE = () => {
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Top Bar */}
-      <div className="h-12 border-b border-border flex items-center px-4 bg-card">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsExplorerOpen(!isExplorerOpen)}
-          className="mr-2"
-        >
-          {isExplorerOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
-        </Button>
-        <Code2 className="w-5 h-5 text-primary mr-2" />
-        <span className="font-semibold text-foreground">Lovable AI</span>
+      <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-card">
+        <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsExplorerOpen(!isExplorerOpen)}
+            className="mr-2"
+          >
+            {isExplorerOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
+          </Button>
+          <Code2 className="w-5 h-5 text-primary mr-2" />
+          <span className="font-semibold text-foreground">ProbSolver AI</span>
+        </div>
+        <ModeToggle />
       </div>
 
       {/* Main Content */}

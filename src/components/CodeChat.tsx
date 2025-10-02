@@ -69,7 +69,7 @@ export const CodeChat = ({ onCodeGenerated }: CodeChatProps) => {
         {messages.length === 0 ? (
           <div className="h-full flex items-center justify-center text-muted-foreground">
             <div className="text-center max-w-md">
-              <p className="text-sm mb-2">💬 Chat with Lovable AI</p>
+              <p className="text-sm mb-2">💬 Chat with ProbSolver AI</p>
               <p className="text-xs">
                 Describe what you want to build and I'll generate the code for you!
               </p>

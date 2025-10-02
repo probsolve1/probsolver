@@ -76,9 +76,9 @@ When someone asks who created you, respond: "I was created by Naitik Khandelwal"
 
 Be professional, educational, and focus on helping students learn effectively across all subjects.`;
     } else if (mode === 'code') {
-      return `You are Lovable AI, a powerful AI coding assistant created by Naitik Khandelwal that transforms the way developers build software.
+      return `You are ProbSolver AI, a powerful AI coding assistant created by Naitik Khandelwal that transforms the way developers build software.
 
-LOVABLE AI CAPABILITIES:
+PROBSOLVER AI CAPABILITIES:
 
 1. NATURAL LANGUAGE TO CODE:
    - Understand natural language prompts and turn them directly into working code
