@@ -5,7 +5,7 @@ import { Send, Loader2 } from 'lucide-react';
 import { useGeminiAPI } from '@/hooks/useGeminiAPI';
 
 interface CodeChatProps {
-  onCodeGenerated: (filename: string, code: string) => void;
+  onCodeGenerated: (code: string) => void;
 }
 
 export const CodeChat = ({ onCodeGenerated }: CodeChatProps) => {
@@ -31,28 +31,13 @@ export const CodeChat = ({ onCodeGenerated }: CodeChatProps) => {
       const response = await callGeminiAPI(userMessage, null);
       setMessages((prev) => [...prev, { role: 'ai', content: response }]);
 
-      // Extract code blocks from response
-      const codeBlockRegex = /```(\w+)?\s*([\s\S]*?)```/g;
-      let match;
-      while ((match = codeBlockRegex.exec(response)) !== null) {
-        const language = match[1] || 'txt';
-        const code = match[2].trim();
-        
-        // Generate filename based on language
-        const extensions: Record<string, string> = {
-          html: 'html',
-          css: 'css',
-          javascript: 'js',
-          js: 'js',
-          typescript: 'ts',
-          ts: 'ts',
-          python: 'py',
-          java: 'java',
-        };
-        const ext = extensions[language.toLowerCase()] || 'txt';
-        const filename = `generated-${Date.now()}.${ext}`;
-        
-        onCodeGenerated(filename, code);
+      // Extract HTML code blocks from response
+      const codeBlockRegex = /```(?:html)?\s*([\s\S]*?)```/g;
+      const match = codeBlockRegex.exec(response);
+      
+      if (match) {
+        const code = match[1].trim();
+        onCodeGenerated(code);
       }
     } catch (error) {
       setMessages((prev) => [...prev, { role: 'ai', content: '❌ Sorry, I encountered an error. Please try again.' }]);

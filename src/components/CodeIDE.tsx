@@ -1,17 +1,13 @@
 import { useState } from 'react';
-import { FileExplorer } from './FileExplorer';
-import { CodeEditor } from './CodeEditor';
-import { PreviewPanel } from './PreviewPanel';
 import { CodeChat } from './CodeChat';
+import { PreviewPanel } from './PreviewPanel';
 import { ModeToggle } from './ModeToggle';
 import { Button } from './ui/button';
-import { PanelLeftClose, PanelLeft, Code2 } from 'lucide-react';
+import { Code2, Code, X } from 'lucide-react';
+import { ScrollArea } from './ui/scroll-area';
 
 export const CodeIDE = () => {
-  const [isExplorerOpen, setIsExplorerOpen] = useState(true);
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [files, setFiles] = useState<Record<string, string>>({
-    'index.html': `<!DOCTYPE html>
+  const [htmlCode, setHtmlCode] = useState(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -40,70 +36,66 @@ export const CodeIDE = () => {
 <body>
   <div class="container">
     <h1>Welcome to ProbSolver AI</h1>
-    <p>Start building your app by chatting below!</p>
+    <p>Start building your app by chatting on the left!</p>
   </div>
 </body>
-</html>`,
-  });
+</html>`);
+  const [isCodeVisible, setIsCodeVisible] = useState(false);
 
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Top Bar */}
       <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-card">
-        <div className="flex items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsExplorerOpen(!isExplorerOpen)}
-            className="mr-2"
-          >
-            {isExplorerOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
-          </Button>
-          <Code2 className="w-5 h-5 text-primary mr-2" />
+        <div className="flex items-center gap-2">
+          <Code2 className="w-5 h-5 text-primary" />
           <span className="font-semibold text-foreground">ProbSolver AI</span>
         </div>
-        <ModeToggle />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsCodeVisible(!isCodeVisible)}
+            className="gap-2"
+          >
+            <Code className="w-4 h-4" />
+            {isCodeVisible ? 'Hide Code' : 'View Code'}
+          </Button>
+          <ModeToggle />
+        </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* File Explorer */}
-        {isExplorerOpen && (
-          <div className="w-64 border-r border-border bg-card overflow-y-auto">
-            <FileExplorer
-              files={files}
-              selectedFile={selectedFile}
-              onSelectFile={setSelectedFile}
-              onAddFile={(filename) => setFiles({ ...files, [filename]: '' })}
-            />
-          </div>
-        )}
-
-        {/* Code Editor */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <CodeEditor
-            file={selectedFile}
-            code={selectedFile ? files[selectedFile] : ''}
-            onCodeChange={(code) => {
-              if (selectedFile) {
-                setFiles({ ...files, [selectedFile]: code });
-              }
-            }}
-          />
+        {/* Chat Panel - Left Side */}
+        <div className="w-[450px] border-r border-border bg-card flex flex-col">
+          <CodeChat onCodeGenerated={(code) => setHtmlCode(code)} />
         </div>
 
-        {/* Preview Panel */}
-        <div className="w-1/2 border-l border-border bg-card overflow-hidden">
-          <PreviewPanel code={selectedFile?.endsWith('.html') ? files[selectedFile] : ''} />
+        {/* Preview Panel - Right Side */}
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+          <PreviewPanel code={htmlCode} />
+          
+          {/* Code View Overlay */}
+          {isCodeVisible && (
+            <div className="absolute inset-0 bg-background/95 backdrop-blur-sm flex flex-col">
+              <div className="h-10 border-b border-border flex items-center justify-between px-4 bg-card">
+                <span className="text-sm font-medium text-foreground">Generated Code</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsCodeVisible(false)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <ScrollArea className="flex-1">
+                <pre className="p-4 text-sm font-mono text-foreground">
+                  <code>{htmlCode}</code>
+                </pre>
+              </ScrollArea>
+            </div>
+          )}
         </div>
-      </div>
-
-      {/* Chat Interface */}
-      <div className="h-80 border-t border-border bg-card">
-        <CodeChat onCodeGenerated={(filename, code) => {
-          setFiles({ ...files, [filename]: code });
-          setSelectedFile(filename);
-        }} />
       </div>
     </div>
   );
