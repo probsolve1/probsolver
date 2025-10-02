@@ -3,6 +3,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { ModeToggle } from '@/components/ModeToggle';
 import { CodePreview } from '@/components/CodePreview';
+import { CodeIDE } from '@/components/CodeIDE';
 import { useModeContext } from '@/contexts/ModeContext';
 import { useGeminiAPI } from '@/hooks/useGeminiAPI';
 import { useImageGeneration } from '@/hooks/useImageGeneration';
@@ -408,6 +409,11 @@ const Index = () => {
       addMessage('⚠️ Sorry, I encountered an error generating the summary.', 'ai');
     }
   };
+
+  // Render IDE for code mode
+  if (mode === 'code') {
+    return <CodeIDE />;
+  }
 
   return (
     <div className="min-h-screen animated-gradient relative overflow-hidden">
