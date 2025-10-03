@@ -3,6 +3,7 @@ import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Send, Loader2 } from 'lucide-react';
 import { useGeminiAPI } from '@/hooks/useGeminiAPI';
+import { useModeContext } from '@/contexts/ModeContext';
 
 interface CodeChatProps {
   onCodeGenerated: (code: string) => void;
@@ -14,6 +15,7 @@ export const CodeChat = ({ onCodeGenerated }: CodeChatProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { callGeminiAPI } = useGeminiAPI();
+  const { addToHistory } = useModeContext();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -25,33 +27,45 @@ export const CodeChat = ({ onCodeGenerated }: CodeChatProps) => {
     const userMessage = input.trim();
     setInput('');
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
+    
+    // Add to conversation history for context
+    addToHistory(userMessage, 'user');
+    
     setIsLoading(true);
 
     try {
       const response = await callGeminiAPI(userMessage, null);
       setMessages((prev) => [...prev, { role: 'ai', content: response }]);
-
-      // Extract HTML code blocks from response
-      const codeBlockRegex = /```(?:html)?\s*([\s\S]*?)```/g;
-      let match;
-      let foundCode = false;
       
-      while ((match = codeBlockRegex.exec(response)) !== null) {
-        const code = match[1].trim();
-        // Only use HTML that looks like a complete document
+      // Add AI response to history
+      addToHistory(response, 'ai');
+
+      // Extract code blocks (HTML, CSS, JS) from response
+      const htmlRegex = /```(?:html)?\s*([\s\S]*?)```/g;
+      const cssRegex = /```css\s*([\s\S]*?)```/g;
+      const jsRegex = /```(?:javascript|js)\s*([\s\S]*?)```/g;
+      
+      let htmlMatch;
+      let foundCompleteHTML = false;
+      
+      // First, try to find a complete HTML document
+      while ((htmlMatch = htmlRegex.exec(response)) !== null) {
+        const code = htmlMatch[1].trim();
         if (code.includes('<!DOCTYPE') || code.includes('<html')) {
           onCodeGenerated(code);
-          foundCode = true;
+          foundCompleteHTML = true;
           break;
         }
       }
       
-      // If no complete HTML found, create a simple document with the content
-      if (!foundCode) {
-        const simpleHtmlRegex = /```(?:html)?\s*([\s\S]*?)```/g;
-        const simpleMatch = simpleHtmlRegex.exec(response);
-        if (simpleMatch) {
-          const snippet = simpleMatch[1].trim();
+      // If no complete HTML found, build one from separate blocks
+      if (!foundCompleteHTML) {
+        htmlRegex.lastIndex = 0; // Reset regex
+        const htmlSnippet = htmlRegex.exec(response)?.[1]?.trim() || '';
+        const cssSnippet = cssRegex.exec(response)?.[1]?.trim() || '';
+        const jsSnippet = jsRegex.exec(response)?.[1]?.trim() || '';
+        
+        if (htmlSnippet || cssSnippet || jsSnippet) {
           const wrappedCode = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -64,10 +78,12 @@ export const CodeChat = ({ onCodeGenerated }: CodeChatProps) => {
       padding: 2rem;
       margin: 0;
     }
+    ${cssSnippet}
   </style>
 </head>
 <body>
-  ${snippet}
+  ${htmlSnippet}
+  ${jsSnippet ? `<script>\n${jsSnippet}\n</script>` : ''}
 </body>
 </html>`;
           onCodeGenerated(wrappedCode);

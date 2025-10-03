@@ -16,6 +16,8 @@ const Index = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [isGeneratingText, setIsGeneratingText] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
   
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -152,10 +154,17 @@ const Index = () => {
   };
 
   const typewriterEffect = async (messageId: string, text: string) => {
+    setIsGeneratingText(true);
     const words = text.split(' ');
     let currentText = '';
     
     for (let i = 0; i < words.length; i++) {
+      // Check if generation was aborted
+      if (abortControllerRef.current?.signal.aborted) {
+        setIsGeneratingText(false);
+        return;
+      }
+      
       currentText += words[i] + ' ';
       
       // Parse and render math for current text during typing
@@ -192,6 +201,17 @@ const Index = () => {
         }
       }, 100);
     }
+    
+    setIsGeneratingText(false);
+  };
+
+  const stopGenerating = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsLoading(false);
+    setIsGeneratingText(false);
   };
 
   const parseMarkdown = (text: string) => {
@@ -270,6 +290,9 @@ const Index = () => {
     setInputValue('');
     const currentUploadedImage = uploadedImage;
     setUploadedImage(null);
+    
+    // Create abort controller for stopping generation
+    abortControllerRef.current = new AbortController();
     
     try {
       if (mode === 'image' && !currentUploadedImage) {
@@ -555,16 +578,29 @@ const Index = () => {
         )}
 
         {/* Loading Indicator */}
-        {(isLoading || isGenerating) && (
-          <div className="flex items-center justify-center py-4 text-muted-foreground">
-            <div className="flex gap-1 mr-3">
-              <div className="w-2 h-2 bg-primary rounded-full animate-bounce-dots"></div>
-              <div className="w-2 h-2 bg-primary rounded-full animate-bounce-dots" style={{animationDelay: '-0.32s'}}></div>
-              <div className="w-2 h-2 bg-primary rounded-full animate-bounce-dots" style={{animationDelay: '-0.16s'}}></div>
+        {(isLoading || isGenerating || isGeneratingText) && (
+          <div className="flex flex-col items-center justify-center py-4 text-muted-foreground">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex gap-1">
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce-dots"></div>
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce-dots" style={{animationDelay: '-0.32s'}}></div>
+                <div className="w-2 h-2 bg-primary rounded-full animate-bounce-dots" style={{animationDelay: '-0.16s'}}></div>
+              </div>
+              <span>
+                {isGenerating ? 'Generating image...' : 'ProbSolver is thinking...'}
+              </span>
             </div>
-            <span>
-              {isGenerating ? 'Generating image...' : 'ProbSolver is thinking...'}
-            </span>
+            {(isGeneratingText || (isLoading && mode !== 'image')) && (
+              <button
+                onClick={stopGenerating}
+                className="px-4 py-2 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="6" width="12" height="12" rx="1"/>
+                </svg>
+                Stop Generating
+              </button>
+            )}
           </div>
         )}
 
