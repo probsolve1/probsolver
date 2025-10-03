@@ -41,29 +41,33 @@ export const CodeChat = ({ onCodeGenerated }: CodeChatProps) => {
       addToHistory(response, 'ai');
 
       // Extract code blocks (HTML, CSS, JS) from response
-      const htmlRegex = /```(?:html)?\s*([\s\S]*?)```/g;
-      const cssRegex = /```css\s*([\s\S]*?)```/g;
-      const jsRegex = /```(?:javascript|js)\s*([\s\S]*?)```/g;
+      // Use more specific regex patterns to avoid conflicts
+      const completeHtmlRegex = /```html\s*(<!DOCTYPE[\s\S]*?)<\/html>\s*```/gi;
+      const htmlOnlyRegex = /```html\s*(?!<!DOCTYPE)([\s\S]*?)```/gi;
+      const cssRegex = /```css\s*([\s\S]*?)```/gi;
+      const jsRegex = /```(?:javascript|js)\s*([\s\S]*?)```/gi;
       
-      let htmlMatch;
       let foundCompleteHTML = false;
       
-      // First, try to find a complete HTML document
-      while ((htmlMatch = htmlRegex.exec(response)) !== null) {
-        const code = htmlMatch[1].trim();
-        if (code.includes('<!DOCTYPE') || code.includes('<html')) {
-          onCodeGenerated(code);
-          foundCompleteHTML = true;
-          break;
-        }
+      // First, check for complete HTML documents (with DOCTYPE)
+      const completeMatch = completeHtmlRegex.exec(response);
+      if (completeMatch) {
+        onCodeGenerated(completeMatch[1].trim());
+        foundCompleteHTML = true;
       }
       
       // If no complete HTML found, build one from separate blocks
       if (!foundCompleteHTML) {
-        htmlRegex.lastIndex = 0; // Reset regex
-        const htmlSnippet = htmlRegex.exec(response)?.[1]?.trim() || '';
-        const cssSnippet = cssRegex.exec(response)?.[1]?.trim() || '';
-        const jsSnippet = jsRegex.exec(response)?.[1]?.trim() || '';
+        // Extract all code blocks
+        const htmlMatches = [...response.matchAll(htmlOnlyRegex)];
+        const cssMatches = [...response.matchAll(cssRegex)];
+        const jsMatches = [...response.matchAll(jsRegex)];
+        
+        const htmlSnippet = htmlMatches.length > 0 ? htmlMatches[0][1].trim() : '';
+        const cssSnippet = cssMatches.length > 0 ? cssMatches[0][1].trim() : '';
+        const jsSnippet = jsMatches.length > 0 ? jsMatches[0][1].trim() : '';
+        
+        console.log('Extracted code blocks:', { htmlSnippet, cssSnippet, jsSnippet });
         
         if (htmlSnippet || cssSnippet || jsSnippet) {
           const wrappedCode = `<!DOCTYPE html>
@@ -75,8 +79,8 @@ export const CodeChat = ({ onCodeGenerated }: CodeChatProps) => {
   <style>
     body {
       font-family: system-ui, -apple-system, sans-serif;
-      padding: 2rem;
       margin: 0;
+      padding: 0;
     }
     ${cssSnippet}
   </style>
@@ -86,7 +90,10 @@ export const CodeChat = ({ onCodeGenerated }: CodeChatProps) => {
   ${jsSnippet ? `<script>\n${jsSnippet}\n</script>` : ''}
 </body>
 </html>`;
+          console.log('Generated wrapped code:', wrappedCode);
           onCodeGenerated(wrappedCode);
+        } else {
+          console.log('No code blocks found in response');
         }
       }
     } catch (error) {
