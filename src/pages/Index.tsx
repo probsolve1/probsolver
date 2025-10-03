@@ -9,7 +9,7 @@ import { useGeminiAPI } from '@/hooks/useGeminiAPI';
 import { useImageGeneration } from '@/hooks/useImageGeneration';
 
 const Index = () => {
-  const [messages, setMessages] = useState<Array<{id: string, content: string, sender: 'user' | 'ai', isImage?: boolean, showActions?: boolean, hasCode?: boolean, imageUrl?: string}>>([]);
+  const [messages, setMessages] = useState<Array<{id: string, content: string, sender: 'user' | 'ai', isImage?: boolean, showActions?: boolean, hasCode?: boolean, imageUrl?: string, combinedHTML?: string}>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [uploadedImage, setUploadedImage] = useState<{data: string, mimeType: string} | null>(null);
@@ -17,6 +17,7 @@ const Index = () => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
   const [isGeneratingText, setIsGeneratingText] = useState(false);
+  const [fullscreenHTML, setFullscreenHTML] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -155,19 +156,17 @@ const Index = () => {
 
   const typewriterEffect = async (messageId: string, text: string) => {
     setIsGeneratingText(true);
-    const words = text.split(' ');
+    const chars = text.split('');
     let currentText = '';
     
-    for (let i = 0; i < words.length; i++) {
-      // Check if generation was aborted
+    for (let i = 0; i < chars.length; i++) {
       if (abortControllerRef.current?.signal.aborted) {
         setIsGeneratingText(false);
         return;
       }
       
-      currentText += words[i] + ' ';
+      currentText += chars[i];
       
-      // Parse and render math for current text during typing
       let displayText = parseMarkdown(currentText);
       displayText += '<span class="typewriter-cursor">|</span>';
       
@@ -177,15 +176,13 @@ const Index = () => {
           : msg
       ));
       
-      // Use ref to check real-time auto-scroll state
       if (autoScrollRef.current && chatContainerRef.current) {
         chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
       }
       
-      await new Promise(resolve => setTimeout(resolve, 30)); // Faster typing
+      await new Promise(resolve => setTimeout(resolve, 8));
     }
     
-    // Remove cursor and render final content with math
     const finalContent = parseMarkdown(text);
     setMessages(prev => prev.map(msg => 
       msg.id === messageId 
@@ -193,7 +190,6 @@ const Index = () => {
         : msg
     ));
     
-    // Final scroll to bottom if auto-scroll is still enabled
     if (autoScrollRef.current && chatContainerRef.current) {
       setTimeout(() => {
         if (chatContainerRef.current && autoScrollRef.current) {
@@ -260,6 +256,47 @@ const Index = () => {
     }
     
     return codeBlocks;
+  };
+
+  const extractCombinedHTML = (text: string): string | null => {
+    const completeHtmlRegex = /```html\s*(<!DOCTYPE[\s\S]*?)<\/html>\s*```/gi;
+    const htmlOnlyRegex = /```html\s*(?!<!DOCTYPE)([\s\S]*?)```/gi;
+    const cssRegex = /```css\s*([\s\S]*?)```/gi;
+    const jsRegex = /```(?:javascript|js)\s*([\s\S]*?)```/gi;
+    
+    const completeMatch = completeHtmlRegex.exec(text);
+    if (completeMatch) {
+      return completeMatch[1].trim();
+    }
+    
+    const htmlMatches = [...text.matchAll(htmlOnlyRegex)];
+    const cssMatches = [...text.matchAll(cssRegex)];
+    const jsMatches = [...text.matchAll(jsRegex)];
+    
+    const htmlSnippet = htmlMatches.length > 0 ? htmlMatches[0][1].trim() : '';
+    const cssSnippet = cssMatches.length > 0 ? cssMatches[0][1].trim() : '';
+    const jsSnippet = jsMatches.length > 0 ? jsMatches[0][1].trim() : '';
+    
+    if (htmlSnippet || cssSnippet || jsSnippet) {
+      return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generated App</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; }
+    ${cssSnippet}
+  </style>
+</head>
+<body>
+  ${htmlSnippet}
+  ${jsSnippet ? `<script>\n${jsSnippet}\n</script>` : ''}
+</body>
+</html>`;
+    }
+    
+    return null;
   };
 
   // Removed callGeminiAPI - now using the hook
@@ -336,8 +373,16 @@ const Index = () => {
         setIsLoading(false);
         
         const hasCode = detectCode(response);
-        const showActions = mode === 'study'; // Only show study actions in study mode
+        const combinedHTML = extractCombinedHTML(response);
+        const showActions = mode === 'study';
         const messageId = addMessage('', 'ai', false, showActions, hasCode);
+        
+        if (combinedHTML) {
+          setMessages(prev => prev.map(msg => 
+            msg.id === messageId ? { ...msg, combinedHTML } : msg
+          ));
+        }
+        
         await typewriterEffect(messageId, response);
       }
       
@@ -543,6 +588,17 @@ const Index = () => {
                               language={codeBlock.language} 
                             />
                           ))}
+                          {message.combinedHTML && (
+                            <button
+                              onClick={() => setFullscreenHTML(message.combinedHTML || null)}
+                              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium flex items-center gap-2"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                              </svg>
+                              View Fullscreen Preview
+                            </button>
+                          )}
                         </div>
                       )}
                       
@@ -707,6 +763,29 @@ const Index = () => {
         .loading-dot:nth-child(2) { animation-delay: -0.16s; }
         .loading-dot:nth-child(3) { animation-delay: 0s; }
       `}</style>
+
+      {/* Fullscreen Preview Modal */}
+      {fullscreenHTML && (
+        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col">
+          <div className="flex items-center justify-between p-4 bg-card border-b border-border">
+            <h3 className="text-lg font-semibold text-foreground">Fullscreen Preview</h3>
+            <button
+              onClick={() => setFullscreenHTML(null)}
+              className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+          <div className="flex-1 bg-white">
+            <iframe
+              className="w-full h-full border-0"
+              sandbox="allow-scripts"
+              srcDoc={fullscreenHTML}
+              title="Fullscreen Preview"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
