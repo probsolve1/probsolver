@@ -40,47 +40,53 @@ export const CodeChat = ({ onCodeGenerated }: CodeChatProps) => {
       // Add AI response to history
       addToHistory(response, 'ai');
 
-      // Extract code blocks with improved regex patterns
-      const htmlRegex = /```html\s*([\s\S]*?)```/gi;
-      const cssRegex = /```css\s*([\s\S]*?)```/gi;
-      const jsRegex = /```(?:javascript|js)\s*([\s\S]*?)```/gi;
+      // MORE ROBUST code extraction - try multiple patterns
+      console.log('Full AI Response length:', response.length);
+      console.log('Response preview:', response.substring(0, 500));
+      
+      // Try different extraction patterns
+      const htmlRegex = /```html\n([\s\S]*?)```/gi;
+      const cssRegex = /```css\n([\s\S]*?)```/gi;
+      const jsRegex = /```(?:javascript|js)\n([\s\S]*?)```/gi;
+      
+      // Reset regex indices
+      htmlRegex.lastIndex = 0;
+      cssRegex.lastIndex = 0;
+      jsRegex.lastIndex = 0;
       
       // Extract all matches
-      const htmlMatches = [...response.matchAll(htmlRegex)];
-      const cssMatches = [...response.matchAll(cssRegex)];
-      const jsMatches = [...response.matchAll(jsRegex)];
+      const htmlMatch = htmlRegex.exec(response);
+      const cssMatch = cssRegex.exec(response);
+      const jsMatch = jsRegex.exec(response);
       
-      let htmlCode = htmlMatches.length > 0 ? htmlMatches[0][1].trim() : '';
-      const cssCode = cssMatches.length > 0 ? cssMatches[0][1].trim() : '';
-      const jsCode = jsMatches.length > 0 ? jsMatches[0][1].trim() : '';
+      let htmlCode = htmlMatch ? htmlMatch[1].trim() : '';
+      const cssCode = cssMatch ? cssMatch[1].trim() : '';
+      const jsCode = jsMatch ? jsMatch[1].trim() : '';
       
-      console.log('Extracted:', { html: !!htmlCode, css: !!cssCode, js: !!jsCode });
+      console.log('Extraction results:', { 
+        htmlLength: htmlCode.length, 
+        cssLength: cssCode.length, 
+        jsLength: jsCode.length,
+        htmlPreview: htmlCode.substring(0, 100),
+        cssPreview: cssCode.substring(0, 100)
+      });
       
       // Check if HTML is a complete document
       const isCompleteHTML = htmlCode.includes('<!DOCTYPE') || htmlCode.includes('<html');
       
-      if (isCompleteHTML && cssCode) {
-        // Insert CSS into existing HTML
-        if (htmlCode.includes('</head>')) {
-          htmlCode = htmlCode.replace('</head>', `  <style>\n${cssCode}\n  </style>\n</head>`);
-        } else if (htmlCode.includes('<head>')) {
-          htmlCode = htmlCode.replace('<head>', `<head>\n  <style>\n${cssCode}\n  </style>`);
-        }
-      }
-      
-      if (isCompleteHTML && jsCode) {
-        // Insert JS into existing HTML
-        if (htmlCode.includes('</body>')) {
-          htmlCode = htmlCode.replace('</body>', `  <script>\n${jsCode}\n  </script>\n</body>`);
-        } else if (htmlCode.includes('</html>')) {
-          htmlCode = htmlCode.replace('</html>', `<script>\n${jsCode}\n</script>\n</html>`);
-        }
-      }
-      
       if (isCompleteHTML) {
+        // Inject CSS into complete HTML
+        if (cssCode && htmlCode.includes('</head>')) {
+          htmlCode = htmlCode.replace('</head>', `  <style>\n${cssCode}\n  </style>\n</head>`);
+        }
+        // Inject JS into complete HTML
+        if (jsCode && htmlCode.includes('</body>')) {
+          htmlCode = htmlCode.replace('</body>', `  <script>\n${jsCode}\n  </script>\n</body>`);
+        }
+        console.log('Using complete HTML with injected CSS/JS');
         onCodeGenerated(htmlCode);
       } else if (htmlCode || cssCode || jsCode) {
-        // Build complete HTML from separate blocks
+        // Build complete HTML from fragments
         const combinedHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -94,15 +100,18 @@ export const CodeChat = ({ onCodeGenerated }: CodeChatProps) => {
       padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
-    ${cssCode}
+${cssCode}
   </style>
 </head>
 <body>
-  ${htmlCode}
-  ${jsCode ? `<script>\n${jsCode}\n  </script>` : ''}
+${htmlCode}
+${jsCode ? `  <script>\n${jsCode}\n  </script>` : ''}
 </body>
 </html>`;
+        console.log('Built combined HTML from fragments');
         onCodeGenerated(combinedHTML);
+      } else {
+        console.log('⚠️ NO CODE BLOCKS FOUND - Response might not contain code');
       }
     } catch (error) {
       setMessages((prev) => [...prev, { role: 'ai', content: '❌ Sorry, I encountered an error. Please try again.' }]);
