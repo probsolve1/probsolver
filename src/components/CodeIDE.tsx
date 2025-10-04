@@ -3,8 +3,9 @@ import { CodeChat } from './CodeChat';
 import { PreviewPanel } from './PreviewPanel';
 import { ModeToggle } from './ModeToggle';
 import { Button } from './ui/button';
-import { Code2, Code, X } from 'lucide-react';
+import { Code2, Code, X, Maximize2 } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
+import { Dialog, DialogContent } from './ui/dialog';
 
 export const CodeIDE = () => {
   const [htmlCode, setHtmlCode] = useState(`<!DOCTYPE html>
@@ -41,6 +42,7 @@ export const CodeIDE = () => {
 </body>
 </html>`);
   const [isCodeVisible, setIsCodeVisible] = useState(false);
+  const [isFullScreenPreview, setIsFullScreenPreview] = useState(false);
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -51,6 +53,15 @@ export const CodeIDE = () => {
           <span className="font-semibold text-foreground">ProbSolver AI</span>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsFullScreenPreview(true)}
+            className="gap-2"
+          >
+            <Maximize2 className="w-4 h-4" />
+            Full Preview
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -97,6 +108,15 @@ export const CodeIDE = () => {
           )}
         </div>
       </div>
+
+      {/* Full Screen Preview Dialog */}
+      <Dialog open={isFullScreenPreview} onOpenChange={setIsFullScreenPreview}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-full p-0">
+          <div className="w-full h-full">
+            <PreviewPanel code={htmlCode} />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
