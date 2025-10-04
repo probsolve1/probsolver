@@ -40,61 +40,69 @@ export const CodeChat = ({ onCodeGenerated }: CodeChatProps) => {
       // Add AI response to history
       addToHistory(response, 'ai');
 
-      // Extract code blocks (HTML, CSS, JS) from response
-      // Use more specific regex patterns to avoid conflicts
-      const completeHtmlRegex = /```html\s*(<!DOCTYPE[\s\S]*?)<\/html>\s*```/gi;
-      const htmlOnlyRegex = /```html\s*(?!<!DOCTYPE)([\s\S]*?)```/gi;
+      // Extract code blocks with improved regex patterns
+      const htmlRegex = /```html\s*([\s\S]*?)```/gi;
       const cssRegex = /```css\s*([\s\S]*?)```/gi;
       const jsRegex = /```(?:javascript|js)\s*([\s\S]*?)```/gi;
       
-      let foundCompleteHTML = false;
+      // Extract all matches
+      const htmlMatches = [...response.matchAll(htmlRegex)];
+      const cssMatches = [...response.matchAll(cssRegex)];
+      const jsMatches = [...response.matchAll(jsRegex)];
       
-      // First, check for complete HTML documents (with DOCTYPE)
-      const completeMatch = completeHtmlRegex.exec(response);
-      if (completeMatch) {
-        onCodeGenerated(completeMatch[1].trim());
-        foundCompleteHTML = true;
+      let htmlCode = htmlMatches.length > 0 ? htmlMatches[0][1].trim() : '';
+      const cssCode = cssMatches.length > 0 ? cssMatches[0][1].trim() : '';
+      const jsCode = jsMatches.length > 0 ? jsMatches[0][1].trim() : '';
+      
+      console.log('Extracted:', { html: !!htmlCode, css: !!cssCode, js: !!jsCode });
+      
+      // Check if HTML is a complete document
+      const isCompleteHTML = htmlCode.includes('<!DOCTYPE') || htmlCode.includes('<html');
+      
+      if (isCompleteHTML && cssCode) {
+        // Insert CSS into existing HTML
+        if (htmlCode.includes('</head>')) {
+          htmlCode = htmlCode.replace('</head>', `  <style>\n${cssCode}\n  </style>\n</head>`);
+        } else if (htmlCode.includes('<head>')) {
+          htmlCode = htmlCode.replace('<head>', `<head>\n  <style>\n${cssCode}\n  </style>`);
+        }
       }
       
-      // If no complete HTML found, build one from separate blocks
-      if (!foundCompleteHTML) {
-        // Extract all code blocks
-        const htmlMatches = [...response.matchAll(htmlOnlyRegex)];
-        const cssMatches = [...response.matchAll(cssRegex)];
-        const jsMatches = [...response.matchAll(jsRegex)];
-        
-        const htmlSnippet = htmlMatches.length > 0 ? htmlMatches[0][1].trim() : '';
-        const cssSnippet = cssMatches.length > 0 ? cssMatches[0][1].trim() : '';
-        const jsSnippet = jsMatches.length > 0 ? jsMatches[0][1].trim() : '';
-        
-        console.log('Extracted code blocks:', { htmlSnippet, cssSnippet, jsSnippet });
-        
-        if (htmlSnippet || cssSnippet || jsSnippet) {
-          const wrappedCode = `<!DOCTYPE html>
+      if (isCompleteHTML && jsCode) {
+        // Insert JS into existing HTML
+        if (htmlCode.includes('</body>')) {
+          htmlCode = htmlCode.replace('</body>', `  <script>\n${jsCode}\n  </script>\n</body>`);
+        } else if (htmlCode.includes('</html>')) {
+          htmlCode = htmlCode.replace('</html>', `<script>\n${jsCode}\n</script>\n</html>`);
+        }
+      }
+      
+      if (isCompleteHTML) {
+        onCodeGenerated(htmlCode);
+      } else if (htmlCode || cssCode || jsCode) {
+        // Build complete HTML from separate blocks
+        const combinedHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Generated App</title>
   <style>
+    * { box-sizing: border-box; }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
       margin: 0;
       padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
-    ${cssSnippet}
+    ${cssCode}
   </style>
 </head>
 <body>
-  ${htmlSnippet}
-  ${jsSnippet ? `<script>\n${jsSnippet}\n</script>` : ''}
+  ${htmlCode}
+  ${jsCode ? `<script>\n${jsCode}\n  </script>` : ''}
 </body>
 </html>`;
-          console.log('Generated wrapped code:', wrappedCode);
-          onCodeGenerated(wrappedCode);
-        } else {
-          console.log('No code blocks found in response');
-        }
+        onCodeGenerated(combinedHTML);
       }
     } catch (error) {
       setMessages((prev) => [...prev, { role: 'ai', content: '❌ Sorry, I encountered an error. Please try again.' }]);
