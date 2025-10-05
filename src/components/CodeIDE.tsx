@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { CodeChat } from './CodeChat';
 import { PreviewPanel } from './PreviewPanel';
 import { ModeToggle } from './ModeToggle';
+import { PublishDialog } from './PublishDialog';
 import { Button } from './ui/button';
-import { Code2, Code, X, Maximize2 } from 'lucide-react';
+import { Code2, Code, X, Maximize2, Upload } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { Dialog, DialogContent } from './ui/dialog';
 
@@ -43,6 +44,7 @@ export const CodeIDE = () => {
 </html>`);
   const [isCodeVisible, setIsCodeVisible] = useState(false);
   const [isFullScreenPreview, setIsFullScreenPreview] = useState(false);
+  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -53,6 +55,15 @@ export const CodeIDE = () => {
           <span className="font-semibold text-foreground">ProbSolver AI</span>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setIsPublishDialogOpen(true)}
+            className="gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            Publish
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -117,6 +128,13 @@ export const CodeIDE = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Publish Dialog */}
+      <PublishDialog 
+        open={isPublishDialogOpen} 
+        onOpenChange={setIsPublishDialogOpen}
+        htmlCode={htmlCode}
+      />
     </div>
   );
 };
