@@ -4,9 +4,12 @@ import { PreviewPanel } from './PreviewPanel';
 import { ModeToggle } from './ModeToggle';
 import { PublishDialog } from './PublishDialog';
 import { Button } from './ui/button';
-import { Code2, Code, X, Maximize2, Upload } from 'lucide-react';
+import { Code2, Code, X, Maximize2, Upload, LogIn, LogOut, User } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
 import { Dialog, DialogContent } from './ui/dialog';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 export const CodeIDE = () => {
   const [htmlCode, setHtmlCode] = useState(`<!DOCTYPE html>
@@ -45,6 +48,8 @@ export const CodeIDE = () => {
   const [isCodeVisible, setIsCodeVisible] = useState(false);
   const [isFullScreenPreview, setIsFullScreenPreview] = useState(false);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -83,6 +88,33 @@ export const CodeIDE = () => {
             {isCodeVisible ? 'Hide Code' : 'View Code'}
           </Button>
           <ModeToggle />
+          
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <User className="w-4 h-4" />
+                  {user.email}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={signOut}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/auth')}
+              className="gap-2"
+            >
+              <LogIn className="w-4 h-4" />
+              Login
+            </Button>
+          )}
         </div>
       </div>
 

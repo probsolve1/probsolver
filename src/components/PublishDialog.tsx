@@ -7,6 +7,8 @@ import { Textarea } from './ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Copy, ExternalLink } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 interface PublishDialogProps {
   open: boolean;
@@ -19,6 +21,8 @@ export const PublishDialog = ({ open, onOpenChange, htmlCode }: PublishDialogPro
   const [description, setDescription] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const generateSlug = (title: string) => {
     const baseSlug = title
@@ -30,6 +34,13 @@ export const PublishDialog = ({ open, onOpenChange, htmlCode }: PublishDialogPro
   };
 
   const handlePublish = async () => {
+    if (!user) {
+      toast.error('Please login to publish');
+      navigate('/auth');
+      onOpenChange(false);
+      return;
+    }
+
     if (!title.trim()) {
       toast.error('Please enter a title');
       return;
@@ -45,7 +56,8 @@ export const PublishDialog = ({ open, onOpenChange, htmlCode }: PublishDialogPro
           title: title.trim(),
           description: description.trim() || null,
           html_content: htmlCode,
-          slug: slug
+          slug: slug,
+          user_id: user.id
         });
 
       if (error) throw error;
