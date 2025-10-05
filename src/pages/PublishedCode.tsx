@@ -63,19 +63,8 @@ export default function PublishedCode() {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-card">
-        <div className="flex items-center gap-3">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => navigate('/')}
-            className="gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </Button>
-          <span className="text-sm font-medium text-foreground">{title}</span>
-        </div>
+      <div className="h-12 border-b border-border flex items-center px-4 bg-card">
+        <span className="text-sm font-medium text-foreground">{title}</span>
       </div>
       <div className="flex-1 overflow-hidden">
         <PreviewPanel code={htmlContent} />
