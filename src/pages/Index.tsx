@@ -369,7 +369,7 @@ const Index = () => {
         
       } else {
         // Regular chat/study mode
-        const response = await callGeminiAPI(problemText, currentUploadedImage, abortControllerRef.current.signal);
+        const response = await callGeminiAPI(problemText, currentUploadedImage);
         setIsLoading(false);
         
         const hasCode = detectCode(response);

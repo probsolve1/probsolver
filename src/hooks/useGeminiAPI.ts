@@ -8,8 +8,7 @@ export const useGeminiAPI = () => {
 
   const callGeminiAPI = async (
     prompt: string, 
-    uploadedImage?: {data: string, mimeType: string} | null,
-    signal?: AbortSignal
+    uploadedImage?: {data: string, mimeType: string} | null
   ): Promise<string> => {
     if (!API_KEY) {
       throw new Error('Gemini API key not configured. Please check your API key setup.');
@@ -47,8 +46,7 @@ export const useGeminiAPI = () => {
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal
+      body: JSON.stringify(payload)
     });
     
     if (!response.ok) {
