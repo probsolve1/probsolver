@@ -14,12 +14,22 @@ export const CodeChat = ({ onCodeGenerated }: CodeChatProps) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { callGeminiAPI } = useGeminiAPI();
   const { addToHistory } = useModeContext();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsLoading(false);
+      setMessages((prev) => [...prev, { role: 'ai', content: '⏹️ Generation stopped.' }]);
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -32,9 +42,10 @@ export const CodeChat = ({ onCodeGenerated }: CodeChatProps) => {
     addToHistory(userMessage, 'user');
     
     setIsLoading(true);
+    abortControllerRef.current = new AbortController();
 
     try {
-      const response = await callGeminiAPI(userMessage, null);
+      const response = await callGeminiAPI(userMessage, null, abortControllerRef.current.signal);
       setMessages((prev) => [...prev, { role: 'ai', content: response }]);
       
       // Add AI response to history
@@ -113,11 +124,16 @@ ${jsCode ? `  <script>\n${jsCode}\n  </script>` : ''}
       } else {
         console.log('⚠️ NO CODE BLOCKS FOUND - Response might not contain code');
       }
-    } catch (error) {
-      setMessages((prev) => [...prev, { role: 'ai', content: '❌ Sorry, I encountered an error. Please try again.' }]);
-      console.error('Chat error:', error);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Request was aborted');
+      } else {
+        setMessages((prev) => [...prev, { role: 'ai', content: '❌ Sorry, I encountered an error. Please try again.' }]);
+        console.error('Chat error:', error);
+      }
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -178,9 +194,15 @@ ${jsCode ? `  <script>\n${jsCode}\n  </script>` : ''}
             className="flex-1 min-h-[60px] max-h-[120px] resize-none"
             disabled={isLoading}
           />
-          <Button onClick={handleSend} disabled={isLoading || !input.trim()} size="lg">
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          </Button>
+          {isLoading ? (
+            <Button onClick={handleStop} variant="destructive" size="lg">
+              Stop
+            </Button>
+          ) : (
+            <Button onClick={handleSend} disabled={!input.trim()} size="lg">
+              <Send className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
     </div>
