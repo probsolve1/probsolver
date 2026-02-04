@@ -14,7 +14,11 @@ export const useGeminiAPI = () => {
       throw new Error('Gemini API key not configured. Please check your API key setup.');
     }
     
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+    // NOTE: Gemini model IDs may be deprecated/removed. Try a primary model then fallbacks.
+    const primaryModel = 'gemini-2.0-flash';
+    const fallbackModels = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+    const buildUrl = (model: string) =>
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`;
     
     // Build conversation context from history - reduced for faster responses
     const contextPrompt = conversationHistory.length > 0 
@@ -43,18 +47,36 @@ export const useGeminiAPI = () => {
       }
     };
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
+    const modelsToTry = [primaryModel, ...fallbackModels];
+    let lastErrorBody = '';
+
+    for (const model of modelsToTry) {
+      const response = await fetch(buildUrl(model), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        return (
+          result?.candidates?.[0]?.content?.parts?.[0]?.text ||
+          'Sorry, I could not process your request.'
+        );
+      }
+
+      if (response.status === 404) {
+        lastErrorBody = await response.text().catch(() => '');
+        continue;
+      }
+
+      const errorBody = await response.text().catch(() => '');
+      throw new Error(`API Error: ${response.status}${errorBody ? ` - ${errorBody}` : ''}`);
     }
-    
-    const result = await response.json();
-    return result?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not process your request.';
+
+    throw new Error(
+      `API Error: 404 - Model not found. ${lastErrorBody ? `Last response: ${lastErrorBody}` : ''}`
+    );
   };
 
   return { callGeminiAPI };
