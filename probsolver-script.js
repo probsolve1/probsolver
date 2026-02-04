@@ -159,7 +159,7 @@ async function sendMessage() {
 }
 
 async function callGeminiAPI(prompt, image) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${API_KEY}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
   
   const contextPrompt = conversationHistory.length > 0 
     ? `CONVERSATION HISTORY:\n${conversationHistory.slice(-3).map(msg => `${msg.role.toUpperCase()}: ${msg.content}`).join('\n')}\n\nCURRENT QUESTION: ${prompt}`

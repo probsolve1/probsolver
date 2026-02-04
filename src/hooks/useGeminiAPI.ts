@@ -14,7 +14,7 @@ export const useGeminiAPI = () => {
       throw new Error('Gemini API key not configured. Please check your API key setup.');
     }
     
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
     
     // Build conversation context from history - reduced for faster responses
     const contextPrompt = conversationHistory.length > 0 
